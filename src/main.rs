@@ -4,12 +4,50 @@ use std::error::Error;
 use teloxide::prelude::*;
 use teloxide::types::ChatId;
 
-pub struct AppData {
+pub struct Config {
     pub flatmates: Vec<i64>,
     pub global_channel_id: i64,
     pub bot_token: String,
 }
-fn config() -> AppData {
+
+#[derive(serde::Deserialize, Debug)]
+struct ChatInfo {
+    title: String,
+}
+
+#[derive(serde::Deserialize, Debug)]
+struct ChatResult {
+    result: ChatInfo,
+}
+
+async fn grab_current_food_master_name(config: &Config) -> String {
+    let client = reqwest::Client::new();
+
+    let bot_token = &config.bot_token;
+    let chat_id = &config.flatmates
+        [2 + chrono::Local::now().iso_week().week0() as usize % config.flatmates.len()];
+
+    let url = format!(
+        "https://api.telegram.org/bot{}/getChat?chat_id={}",
+        bot_token, chat_id
+    );
+
+    let response = client.get(url).send().await;
+
+    match response {
+        Ok(response) => {
+            let chat_result: ChatResult = response.json().await.unwrap();
+            let title = chat_result.result.title;
+            title[17..].to_string()
+        }
+        Err(e) => {
+            eprintln!("Error fetching chat info: {}", e);
+            "Unknown".to_string()
+        }
+    }
+}
+
+fn config() -> Config {
     let bot_token = env::var("TELEGRAM_BOT_TOKEN").expect("TELEGRAM_BOT_TOKEN not set");
     let channel_id_str = env::var("TELEGRAM_CHANNEL_ID").expect("TELEGRAM_CHANNEL_ID not set");
     let channel_id: i64 = channel_id_str
@@ -24,7 +62,7 @@ fn config() -> AppData {
             )
         })
         .collect();
-    AppData {
+    Config {
         flatmates,
         global_channel_id: channel_id,
         bot_token,
@@ -50,7 +88,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
 }
 
 async fn wait_to_trigger_hour() {
-    let trigger_time = chrono::NaiveTime::from_hms_opt(12, 5, 0).unwrap();
+    let trigger_time = chrono::NaiveTime::from_hms_opt(13, 27, 0).unwrap();
     let now = chrono::Local::now();
     let next_notif_day = if now.time() >= trigger_time {
         now + chrono::Duration::days(1)
@@ -80,7 +118,12 @@ async fn send_scheduled_messages(
     loop {
         wait_to_trigger_hour().await;
 
-        match bot.send_message(chat_id, "Hello World!").await {
+        let message = format!(
+            "Current food master is {}",
+            grab_current_food_master_name(&config()).await
+        );
+
+        match bot.send_message(chat_id, message).await {
             Ok(_) => println!("Scheduled message sent successfully"),
             Err(e) => eprintln!("Error sending scheduled message: {}", e),
         }
