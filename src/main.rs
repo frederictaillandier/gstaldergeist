@@ -3,7 +3,6 @@ use std::env;
 use std::error::Error;
 use teloxide::prelude::*;
 use teloxide::types::ChatId;
-use tokio::time::interval;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
