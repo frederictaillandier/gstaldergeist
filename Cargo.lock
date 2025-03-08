@@ -405,6 +405,7 @@ name = "gstaldergeist"
 version = "0.1.0"
 dependencies = [
  "chrono",
+ "serde",
  "teloxide",
  "tokio",
 ]

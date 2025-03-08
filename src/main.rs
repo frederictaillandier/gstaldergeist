@@ -4,16 +4,41 @@ use std::error::Error;
 use teloxide::prelude::*;
 use teloxide::types::ChatId;
 
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
+pub struct AppData {
+    pub flatmates: Vec<i64>,
+    pub global_channel_id: i64,
+    pub bot_token: String,
+}
+fn config() -> AppData {
     let bot_token = env::var("TELEGRAM_BOT_TOKEN").expect("TELEGRAM_BOT_TOKEN not set");
     let channel_id_str = env::var("TELEGRAM_CHANNEL_ID").expect("TELEGRAM_CHANNEL_ID not set");
     let channel_id: i64 = channel_id_str
         .parse()
         .expect("TELEGRAM_CHANNEL_ID must be a number");
+    let flatmates: String = env::var("TELEGRAM_FLATMATES").expect("TELEGRAM_FLATMATES not set");
+    let flatmates: Vec<i64> = flatmates
+        .split(',')
+        .map(|s| {
+            s.trim().parse().expect(
+                "TELEGRAM_FLATMATES must be a comma-separated list of numbers like 123,456,789",
+            )
+        })
+        .collect();
+    AppData {
+        flatmates,
+        global_channel_id: channel_id,
+        bot_token,
+    }
+}
 
-    let bot = Bot::new(bot_token);
-    let scheduled_task = tokio::spawn(send_scheduled_messages(bot.clone(), ChatId(channel_id)));
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
+    let app = config();
+    let bot = Bot::new(app.bot_token);
+    let scheduled_task = tokio::spawn(send_scheduled_messages(
+        bot.clone(),
+        ChatId(app.global_channel_id),
+    ));
 
     let handler = dptree::entry().branch(Update::filter_message().endpoint(handle_message));
     Dispatcher::builder(bot, handler).build().dispatch().await;
@@ -64,7 +89,6 @@ async fn send_scheduled_messages(
 
 async fn handle_message(bot: Bot, msg: Message) -> ResponseResult<()> {
     println!("Received message: {:?}", msg.text());
-    // If someone sends the /start command, respond
     if let Some(text) = msg.text() {
         if text == "/start" {
             bot.send_message(

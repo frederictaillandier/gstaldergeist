@@ -5,5 +5,6 @@ edition = "2024"
 
 [dependencies]
 chrono = "0.4.40"
+serde = "1.0.218"
 teloxide = "0.13.0"
 tokio = { version = "1.44", features = ["full"] }
