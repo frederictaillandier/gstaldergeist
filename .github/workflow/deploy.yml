@@ -1,0 +1,21 @@
+name: Deploy Gstaldergeist
+
+on:
+  push:
+    branches:
+      - main # Triggers only when you push to this branch
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to server
+        uses: appleboy/ssh-action@v0.1.10
+        with:
+          host: ${{ secrets.HOST }}
+          username: ${{ secrets.USERNAME }}
+          key: ${{ secrets.SSH_KEY }}
+          port: ${{ secrets.PORT }}
+          script: |
+            cd ~/ansible-deploy
+            ansible-playbook playbook.yml
