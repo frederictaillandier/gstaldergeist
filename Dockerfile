@@ -1,4 +1,4 @@
-FROM rust:slim-bookworm as builder
+FROM docker.io/library/rust:slim-bookworm as builder
 
 WORKDIR /usr/src/app
 COPY . .
