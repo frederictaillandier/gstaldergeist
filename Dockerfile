@@ -4,7 +4,7 @@ COPY . .
 RUN apt-get update && apt-get install -y libssl-dev pkg-config
 RUN cargo build --release
 
-FROM docker.io/library/rust:debian:bookworm-slim
+FROM docker.io/library/debian:bookworm-slim
 WORKDIR /app
 COPY --from=builder /usr/src/app/target/release/gstaldergeist /app/gstaldergeist
 CMD ["/app/gstaldergeist"]
