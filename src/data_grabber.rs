@@ -40,7 +40,14 @@ impl fmt::Display for TrashType {
 #[derive(Debug)]
 pub struct TrashesSchedule {
     pub dates: HashMap<NaiveDate, Vec<TrashType>>,
-    pub master: String,
+    pub master_name: String,
+    pub master_id: i64,
+}
+
+async fn current_food_master_id(config: &super::Config) -> i64 {
+    let chat_id = config.flatmates
+        [2 + chrono::Local::now().iso_week().week0() as usize % config.flatmates.len()];
+    chat_id
 }
 
 async fn grab_current_food_master_name(config: &super::Config) -> String {
@@ -87,6 +94,7 @@ pub async fn get_trashes(
 
     TrashesSchedule {
         dates,
-        master: grab_current_food_master_name(config).await,
+        master_name: grab_current_food_master_name(config).await,
+        master_id: current_food_master_id(config).await,
     }
 }

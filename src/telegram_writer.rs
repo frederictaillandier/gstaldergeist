@@ -1,6 +1,10 @@
 use super::data_grabber::TrashesSchedule;
 use chrono::Datelike;
 use teloxide::prelude::*;
+use teloxide::{
+    payloads::SendMessageSetters,
+    types::{InlineKeyboardButton, InlineKeyboardMarkup},
+};
 
 async fn send(bot: &Bot, channel: i64, message: &str) {
     match bot.send_message(ChatId(channel), message).await {
@@ -10,11 +14,12 @@ async fn send(bot: &Bot, channel: i64, message: &str) {
 }
 
 async fn weekly_update(bot: &Bot, config: &super::Config, schedule: &TrashesSchedule) {
-    let global_chat_update_txt = format!("The new food master is {}.", schedule.master);
+    let global_chat_update_txt = format!("The new food master is {}.", schedule.master_name);
     send(bot, config.global_channel_id, &global_chat_update_txt).await;
 
     let mut master_update_txt = String::new();
     for i in 1..8 {
+        // iterate over the next 7 days
         let date = chrono::Local::now().naive_local().date() + chrono::Duration::days(i);
         let trashes = schedule.dates.get(&date);
         match trashes {
@@ -34,12 +39,12 @@ async fn weekly_update(bot: &Bot, config: &super::Config, schedule: &TrashesSche
         This week you need to put these trashes in front of the house before 7am.\n\
         Here is the schedule:\n\
         {}Have a nice evening!",
-        schedule.master, master_update_txt
+        schedule.master_name, master_update_txt
     );
-    send(bot, config.flatmates[1], &master_update_txt).await;
+    send(bot, schedule.master_id, &master_update_txt).await;
 }
 
-async fn daily_update(bot: &Bot, config: &super::Config, schedule: &TrashesSchedule) {
+async fn daily_update(bot: &Bot, _config: &super::Config, schedule: &TrashesSchedule) {
     let tomorrow = chrono::Local::now().naive_local().date() + chrono::Duration::days(1);
     let trashes = schedule.dates.get(&tomorrow);
     match trashes {
@@ -49,17 +54,34 @@ async fn daily_update(bot: &Bot, config: &super::Config, schedule: &TrashesSched
                 .fold(String::new(), |acc, trash| format!("{} {}", acc, trash));
             let daily_update_txt = format!(
                 "Hello {} !\nDon't forget the {} trashes out before tomorrow morning! Have a nice evening!",
-                schedule.master, trashes_str
+                schedule.master_name, trashes_str
             );
-            send(bot, config.flatmates[1], &daily_update_txt).await;
+
+            let keyboard = InlineKeyboardMarkup::new(vec![
+                // First row with two buttons
+                vec![
+                    InlineKeyboardButton::callback("Done", "done"),
+                    InlineKeyboardButton::callback("Snooze", "snooze"),
+                    InlineKeyboardButton::callback("I can't", "cant"),
+                ],
+            ]);
+
+            let res = bot
+                .send_message(ChatId(schedule.master_id), &daily_update_txt)
+                .reply_markup(keyboard)
+                .await;
+            match res {
+                Ok(_) => println!("Scheduled message sent successfully"),
+                Err(e) => eprintln!("Error sending scheduled message: {}", e),
+            }
         }
         None => {
             send(
                 bot,
-                config.flatmates[1],
+                schedule.master_id,
                 &format!(
                     "Hi {}\nNo trashes tomorrow!\nHave a nice evening.",
-                    schedule.master
+                    schedule.master_name
                 ),
             )
             .await;
