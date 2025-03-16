@@ -4,7 +4,13 @@ use std::error::Error;
 
 use teloxide::prelude::*;
 mod data_grabber;
+mod email;
 mod telegram_writer;
+
+use teloxide::{
+    payloads::SendMessageSetters,
+    types::{InlineKeyboardButton, InlineKeyboardMarkup},
+};
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub enum TaskState {
@@ -147,7 +153,15 @@ async fn handle_message(bot: Bot, msg: Message) -> ResponseResult<()> {
     println!("Received message: {:?} from {:?}", msg.text(), msg.chat.id);
     if let Some(text) = msg.text() {
         if text == "ping" {
-            bot.send_message(msg.chat.id, "pong!").await?;
+            let keyboard = InlineKeyboardMarkup::new(vec![
+                // First row with two buttons
+                vec![InlineKeyboardButton::callback("AAA", "aaa")],
+                vec![InlineKeyboardButton::callback("BBB", "bbb")],
+            ]);
+
+            bot.send_message(msg.chat.id, "pong!")
+                .reply_markup(keyboard)
+                .await?;
         }
     }
     Ok(())
@@ -169,7 +183,7 @@ async fn handle_callback_query(
                 "done" => {
                     // Handle "Done" button
                     task_state.lock().unwrap().state = TaskState::None;
-                    bot.edit_message_text(chat_id, message.id(), "Thank you <3")
+                    bot.edit_message_text(chat_id, message.id(), "Thank you! <3")
                         .await?;
                 }
                 "snooze" => {
@@ -188,6 +202,32 @@ async fn handle_callback_query(
                     )
                     .await?;
                 }
+                "new_bags" => {
+                    // Handle "No bags" button
+                    bot.edit_message_text(
+                        chat_id,
+                        message.id(),
+                        "Ok, I'll request new bags! Have a nice evening.",
+                    )
+                    .await?;
+                }
+                "enough_bags" => {
+                    // Handle "Enough bags" button
+                    bot.edit_message_text(chat_id, message.id(), "Great! Have a nice evening.")
+                        .await?;
+                }
+                "aaa" => {
+                    // Handle "AAA" button
+                    bot.edit_message_text(chat_id, message.id(), "You clicked AAA!")
+                        .await?;
+                }
+                "bbb" => {
+                    // Handle "BBB" button
+                    bot.edit_message_text(chat_id, message.id(), "You clicked BBB!")
+                        .await?;
+                    email::request_new_bags();
+                }
+
                 _ => {
                     // Handle unknown callback data
                     bot.send_message(chat_id, "Unrecognized option.").await?;

@@ -33,15 +33,30 @@ async fn weekly_update(bot: &Bot, config: &super::Config, schedule: &TrashesSche
             }
         }
     }
+    let keyboard = InlineKeyboardMarkup::new(vec![
+        // First row with two buttons
+        vec![InlineKeyboardButton::callback(
+            "Yes! Request new bags",
+            "new_bags",
+        )],
+        vec![InlineKeyboardButton::callback(
+            "We have enought bags!",
+            "enough_bags",
+        )],
+    ]);
+
     let master_update_txt = format!(
         "Hello {}!\n\
         You are the new food master.\n\
         This week you need to put these trashes in front of the house before 7am.\n\
         Here is the schedule:\n\
-        {}Have a nice evening!",
+        {}Do we need new we-recycle bags ?",
         schedule.master_name, master_update_txt
     );
-    send(bot, schedule.master_id, &master_update_txt).await;
+    bot.send_message(ChatId(schedule.master_id), &master_update_txt)
+        .reply_markup(keyboard)
+        .await
+        .unwrap();
 }
 
 async fn daily_update(
