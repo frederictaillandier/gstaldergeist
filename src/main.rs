@@ -169,20 +169,24 @@ async fn handle_callback_query(
                 "done" => {
                     // Handle "Done" button
                     task_state.lock().unwrap().state = TaskState::None;
-                    bot.send_message(chat_id, "Thank you <3").await?;
+                    bot.edit_message_text(chat_id, message.id(), "Thank you <3")
+                        .await?;
                 }
                 "snooze" => {
                     // Handle "Snooze" button
                     task_state.lock().unwrap().state = TaskState::Pending;
-                    bot.send_message(chat_id, "Ok :) I'll remind you later.")
+                    bot.edit_message_text(chat_id, message.id(), "Ok, I'll remind you later.")
                         .await?;
-                    // You might want to add logic to reschedule the reminder
                 }
                 "cant" => {
                     // Handle "I can't" button
                     task_state.lock().unwrap().state = TaskState::None;
-                    bot.send_message(chat_id, "No problem. I will ask the others to help.")
-                        .await?;
+                    bot.edit_message_text(
+                        chat_id,
+                        message.id(),
+                        "No problem. I will ask the others to help.",
+                    )
+                    .await?;
                 }
                 _ => {
                     // Handle unknown callback data
