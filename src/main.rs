@@ -3,7 +3,6 @@ use std::env;
 use std::error::Error;
 
 use teloxide::prelude::*;
-use teloxide::types::ChatId;
 mod data_grabber;
 mod telegram_writer;
 
@@ -13,43 +12,6 @@ pub struct Config {
     pub bot_token: String,
     pub immediate: bool,
     pub force_weekly: bool,
-}
-
-#[derive(serde::Deserialize, Debug)]
-struct ChatInfo {
-    title: String,
-}
-
-#[derive(serde::Deserialize, Debug)]
-struct ChatResult {
-    result: ChatInfo,
-}
-
-async fn grab_current_food_master_name(config: &Config) -> String {
-    let client = reqwest::Client::new();
-
-    let bot_token = &config.bot_token;
-    let chat_id = &config.flatmates
-        [2 + chrono::Local::now().iso_week().week0() as usize % config.flatmates.len()];
-
-    let url = format!(
-        "https://api.telegram.org/bot{}/getChat?chat_id={}",
-        bot_token, chat_id
-    );
-
-    let response = client.get(url).send().await;
-
-    match response {
-        Ok(response) => {
-            let chat_result: ChatResult = response.json().await.unwrap();
-            let title = chat_result.result.title;
-            title[17..].to_string()
-        }
-        Err(e) => {
-            eprintln!("Error fetching chat info: {}", e);
-            "Unknown".to_string()
-        }
-    }
 }
 
 fn config() -> Config {
@@ -138,26 +100,12 @@ async fn send_scheduled_messages(
         };
 
         let trashes_schedule = data_grabber::get_trashes(&app, today, until_date).await;
-
-        let message = format!(
-            "Current food master is {}",
-            grab_current_food_master_name(&app).await
-        );
-
         telegram_writer::send_update(&bot, &app, &trashes_schedule, weekly).await;
-
-        match bot
-            .send_message(ChatId(app.global_channel_id), message)
-            .await
-        {
-            Ok(_) => println!("Scheduled message sent successfully"),
-            Err(e) => eprintln!("Error sending scheduled message: {}", e),
-        }
     }
 }
 
 async fn handle_message(bot: Bot, msg: Message) -> ResponseResult<()> {
-    println!("Received message: {:?}", msg.text());
+    println!("Received message: {:?} from {:?}", msg.text(), msg.chat.id);
     if let Some(text) = msg.text() {
         if text == "/start" {
             bot.send_message(
