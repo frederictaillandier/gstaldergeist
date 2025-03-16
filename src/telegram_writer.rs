@@ -44,7 +44,12 @@ async fn weekly_update(bot: &Bot, config: &super::Config, schedule: &TrashesSche
     send(bot, schedule.master_id, &master_update_txt).await;
 }
 
-async fn daily_update(bot: &Bot, _config: &super::Config, schedule: &TrashesSchedule) {
+async fn daily_update(
+    bot: &Bot,
+    _config: &super::Config,
+    schedule: &TrashesSchedule,
+    shared_task: std::sync::Arc<std::sync::Mutex<super::SharedTaskState>>,
+) {
     let tomorrow = chrono::Local::now().naive_local().date() + chrono::Duration::days(1);
     let trashes = schedule.dates.get(&tomorrow);
     match trashes {
@@ -59,8 +64,8 @@ async fn daily_update(bot: &Bot, _config: &super::Config, schedule: &TrashesSche
 
             let keyboard = InlineKeyboardMarkup::new(vec![
                 // First row with two buttons
+                vec![InlineKeyboardButton::callback("Done", "done")],
                 vec![
-                    InlineKeyboardButton::callback("Done", "done"),
                     InlineKeyboardButton::callback("Snooze", "snooze"),
                     InlineKeyboardButton::callback("I can't", "cant"),
                 ],
@@ -74,6 +79,7 @@ async fn daily_update(bot: &Bot, _config: &super::Config, schedule: &TrashesSche
                 Ok(_) => println!("Scheduled message sent successfully"),
                 Err(e) => eprintln!("Error sending scheduled message: {}", e),
             }
+            shared_task.lock().unwrap().state = super::TaskState::Pending;
         }
         None => {
             send(
@@ -85,6 +91,7 @@ async fn daily_update(bot: &Bot, _config: &super::Config, schedule: &TrashesSche
                 ),
             )
             .await;
+            shared_task.lock().unwrap().state = super::TaskState::None;
         }
     }
 }
@@ -94,9 +101,28 @@ pub async fn send_update(
     config: &super::Config,
     schedule: &TrashesSchedule,
     weekly: bool,
+    shared_task: std::sync::Arc<std::sync::Mutex<super::SharedTaskState>>,
 ) {
     if weekly {
         weekly_update(bot, config, schedule).await;
     }
-    daily_update(bot, config, schedule).await;
+    daily_update(bot, config, schedule, shared_task).await;
+}
+
+pub async fn shame_update(bot: &Bot, config: &super::Config, schedule: &TrashesSchedule) {
+    let tomorrow = chrono::Local::now().naive_local().date() + chrono::Duration::days(1);
+    let trashes = schedule.dates.get(&tomorrow);
+
+    if let Some(trashes) = trashes {
+        let trashes_str = trashes
+            .iter()
+            .fold(String::new(), |acc, trash| format!("{} {}", acc, trash));
+
+        let shame_update_txt = format!(
+            "Unfortunately {} is not able to fulfill his role as Food master today!\n
+            Could someone put the {} trashes out before tomorrow morning? Have a nice evening!",
+            schedule.master_name, trashes_str
+        );
+        send(bot, config.global_channel_id, &shame_update_txt).await;
+    }
 }

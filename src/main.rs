@@ -1,10 +1,21 @@
-use chrono::{Datelike, TimeZone, Timelike};
+use chrono::{Datelike, Timelike};
 use std::env;
 use std::error::Error;
 
 use teloxide::prelude::*;
 mod data_grabber;
 mod telegram_writer;
+
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub enum TaskState {
+    Pending,
+    Failed,
+    None,
+}
+
+pub struct SharedTaskState {
+    state: TaskState,
+}
 
 pub struct Config {
     pub flatmates: Vec<i64>,
@@ -46,10 +57,23 @@ fn config() -> Config {
 async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     let app = config();
     let bot = Bot::new(&app.bot_token);
-    let scheduled_task = tokio::spawn(send_scheduled_messages(app, bot.clone()));
+    let task_state = std::sync::Arc::new(std::sync::Mutex::new(SharedTaskState {
+        state: TaskState::None,
+    }));
+    let app_state = dptree::deps![std::sync::Arc::clone(&task_state)];
+    let scheduled_task = tokio::spawn(send_scheduled_messages(app, task_state, bot.clone()));
 
-    let handler = dptree::entry().branch(Update::filter_message().endpoint(handle_message));
-    Dispatcher::builder(bot, handler).build().dispatch().await;
+    let message_handler = Update::filter_message().endpoint(handle_message);
+    let callback_handler = Update::filter_callback_query().endpoint(handle_callback_query);
+    let handler = dptree::entry()
+        .branch(message_handler)
+        .branch(callback_handler);
+
+    Dispatcher::builder(bot, handler)
+        .dependencies(app_state)
+        .build()
+        .dispatch()
+        .await;
     if let Err(e) = scheduled_task.await {
         eprintln!("Scheduled task failed: {}", e);
     }
@@ -57,63 +81,119 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     Ok(())
 }
 
-async fn wait_to_trigger_hour() {
-    let trigger_time = chrono::NaiveTime::from_hms_opt(18, 00, 0).unwrap();
-
+async fn wait_next_hour() {
     let now = chrono::Local::now();
-    let next_notif_day = if now.time() >= trigger_time {
-        now + chrono::Duration::days(1)
-    } else {
-        now
-    };
-    let next_notif_time = chrono::Local
-        .with_ymd_and_hms(
-            next_notif_day.year(),
-            next_notif_day.month(),
-            next_notif_day.day(),
-            trigger_time.hour(),
-            trigger_time.minute(),
-            trigger_time.second(),
-        )
-        .unwrap();
-    let duration_to_trigger = next_notif_time.signed_duration_since(now);
+    let next_hour = now + chrono::Duration::hours(1);
+
+    let duration_to_trigger = next_hour.signed_duration_since(now);
     let interval = duration_to_trigger.to_std().unwrap();
     tokio::time::sleep(interval).await;
 }
 
 // Function to send messages on a schedule
 async fn send_scheduled_messages(
-    app: Config,
+    config: Config,
+    shared_task: std::sync::Arc<std::sync::Mutex<SharedTaskState>>,
     bot: Bot,
 ) -> Result<(), Box<dyn Error + Send + Sync>> {
     loop {
-        if !app.immediate {
-            wait_to_trigger_hour().await;
+        if !config.immediate {
+            wait_next_hour().await;
+        } else {
+            tokio::time::sleep(std::time::Duration::from_secs(5)).await;
         }
 
+        let now = chrono::Local::now();
         let today = chrono::Local::now().date_naive();
-        let weekly = today.weekday().number_from_monday() == 7 || app.force_weekly;
+        let weekly = today.weekday().number_from_monday() == 7 || config.force_weekly;
         let until_date = if weekly {
             today + chrono::Duration::days(7)
         } else {
             today + chrono::Duration::days(1)
         };
 
-        let trashes_schedule = data_grabber::get_trashes(&app, today, until_date).await;
-        telegram_writer::send_update(&bot, &app, &trashes_schedule, weekly).await;
+        let current_task_state = shared_task.clone().lock().unwrap().state.clone();
+        if now.hour() == 18 {
+            let trashes_schedule = data_grabber::get_trashes(&config, today, until_date).await;
+            telegram_writer::send_update(
+                &bot,
+                &config,
+                &trashes_schedule,
+                weekly,
+                shared_task.clone(),
+            )
+            .await;
+        } else if (current_task_state == TaskState::Pending && now.hour() >= 22)
+            || current_task_state == TaskState::Failed
+        {
+            let trashes_schedule = data_grabber::get_trashes(&config, today, until_date).await;
+            telegram_writer::shame_update(&bot, &config, &trashes_schedule).await;
+            shared_task.lock().unwrap().state = TaskState::None;
+        } else if current_task_state == TaskState::Pending && now.hour() >= 19 {
+            let trashes_schedule = data_grabber::get_trashes(&config, today, until_date).await;
+            telegram_writer::send_update(
+                &bot,
+                &config,
+                &trashes_schedule,
+                false,
+                shared_task.clone(),
+            )
+            .await;
+        }
     }
 }
 
 async fn handle_message(bot: Bot, msg: Message) -> ResponseResult<()> {
     println!("Received message: {:?} from {:?}", msg.text(), msg.chat.id);
     if let Some(text) = msg.text() {
-        if text == "/start" {
-            bot.send_message(
-                msg.chat.id,
-                "Bot is running! I'll send hourly messages to the configured channel.",
-            )
-            .await?;
+        if text == "ping" {
+            bot.send_message(msg.chat.id, "pong!").await?;
         }
     }
+    Ok(())
+}
+
+// Add this new handler function for callback queries
+async fn handle_callback_query(
+    bot: Bot,
+    query: CallbackQuery,
+    task_state: std::sync::Arc<std::sync::Mutex<SharedTaskState>>,
+) -> ResponseResult<()> {
+    // Extract the callback data from the query
+    if let Some(data) = &query.data {
+        // Get the chat ID from the message
+        if let Some(message) = query.message {
+            let chat_id = message.chat().id;
+
+            match data.as_str() {
+                "done" => {
+                    // Handle "Done" button
+                    task_state.lock().unwrap().state = TaskState::None;
+                    bot.send_message(chat_id, "Thank you <3").await?;
+                }
+                "snooze" => {
+                    // Handle "Snooze" button
+                    task_state.lock().unwrap().state = TaskState::Pending;
+                    bot.send_message(chat_id, "Ok :) I'll remind you later.")
+                        .await?;
+                    // You might want to add logic to reschedule the reminder
+                }
+                "cant" => {
+                    // Handle "I can't" button
+                    task_state.lock().unwrap().state = TaskState::None;
+                    bot.send_message(chat_id, "No problem. I will ask the others to help.")
+                        .await?;
+                }
+                _ => {
+                    // Handle unknown callback data
+                    bot.send_message(chat_id, "Unrecognized option.").await?;
+                }
+            }
+
+            // Answer the callback query to remove the "loading" state
+            bot.answer_callback_query(query.id).await?;
+        }
+    }
+
     Ok(())
 }
