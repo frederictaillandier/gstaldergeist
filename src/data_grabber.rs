@@ -46,7 +46,7 @@ pub struct TrashesSchedule {
 
 async fn current_food_master_id(config: &super::Config) -> i64 {
     let chat_id = config.flatmates
-        [2 + chrono::Local::now().iso_week().week0() as usize % config.flatmates.len()];
+        [(2 + chrono::Local::now().iso_week().week0() as usize) % config.flatmates.len()];
     chat_id
 }
 
@@ -55,7 +55,7 @@ async fn grab_current_food_master_name(config: &super::Config) -> String {
 
     let bot_token = &config.bot_token;
     let chat_id = &config.flatmates
-        [2 + chrono::Local::now().iso_week().week0() as usize % config.flatmates.len()];
+        [(2 + chrono::Local::now().iso_week().week0() as usize) % config.flatmates.len()];
 
     let url = format!(
         "https://api.telegram.org/bot{}/getChat?chat_id={}",
