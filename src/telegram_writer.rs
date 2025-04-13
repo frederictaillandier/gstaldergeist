@@ -36,11 +36,11 @@ async fn weekly_update(bot: &Bot, config: &super::Config, schedule: &TrashesSche
     let keyboard = InlineKeyboardMarkup::new(vec![
         // First row with two buttons
         vec![InlineKeyboardButton::callback(
-            "Yes! Request new bags",
+            "Yes! Request new bags.",
             "new_bags",
         )],
         vec![InlineKeyboardButton::callback(
-            "We have enought bags!",
+            "No. We have enought bags.",
             "enough_bags",
         )],
     ]);
@@ -50,10 +50,16 @@ async fn weekly_update(bot: &Bot, config: &super::Config, schedule: &TrashesSche
         You are the new food master.\n\
         This week you need to put these trashes in front of the house before 7am.\n\
         Here is the schedule:\n\
-        {}Do we need new we-recycle bags ?",
+        {}",
         schedule.master_name, master_update_txt
     );
     bot.send_message(ChatId(schedule.master_id), &master_update_txt)
+        .await
+        .unwrap();
+
+    let request_bags_txt =
+        format!("Can you look if we still have enough We-Recycle bags? Do we need to order new?");
+    bot.send_message(ChatId(schedule.master_id), &request_bags_txt)
         .reply_markup(keyboard)
         .await
         .unwrap();
@@ -73,17 +79,14 @@ async fn daily_update(
                 .iter()
                 .fold(String::new(), |acc, trash| format!("{} {}", acc, trash));
             let daily_update_txt = format!(
-                "Hello {} !\nDon't forget the {} trashes out before tomorrow morning! Have a nice evening!",
+                "Hello {} !\nDon't forget the{} trashes out before tomorrow morning!",
                 schedule.master_name, trashes_str
             );
 
             let keyboard = InlineKeyboardMarkup::new(vec![
                 // First row with two buttons
                 vec![InlineKeyboardButton::callback("Done", "done")],
-                vec![
-                    InlineKeyboardButton::callback("Snooze", "snooze"),
-                    InlineKeyboardButton::callback("I can't", "cant"),
-                ],
+                vec![InlineKeyboardButton::callback("I can't", "cant")],
             ]);
 
             let res = bot
@@ -134,8 +137,7 @@ pub async fn shame_update(bot: &Bot, config: &super::Config, schedule: &TrashesS
             .fold(String::new(), |acc, trash| format!("{} {}", acc, trash));
 
         let shame_update_txt = format!(
-            "Unfortunately {} is not able to fulfill his role as Food master today!\n
-            Could someone put the {} trashes out before tomorrow morning? Have a nice evening!",
+            "Unfortunately {} is not able to fulfill his role as Food master today...Could someone put the {} trashes out before tomorrow morning? Have a nice evening!",
             schedule.master_name, trashes_str
         );
         send(bot, config.global_channel_id, &shame_update_txt).await;

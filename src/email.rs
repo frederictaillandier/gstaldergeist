@@ -38,12 +38,13 @@ pub fn request_new_bags() {
         "We Recycle",
         "Request for new bags",
         format!(
-            "Hello!\nMy name is {} and my address is {}\nUnfortunately It looks like we do not have any bags anymore ?\nCould you please send us some new ones ?\nThank you very much !\n{}",
+            "Hi!\nMy name is {} and my address is {}\nUnfortunately It looks like we do not have any bags anymore ?\nCould you please send us some new ones ?\nThank you very much !\n{}",
             email_config.from_name, email_config.address, email_config.from_name
         ).as_str(),
         Some(
             format!(
-                "<h1>Hello!</h1><p>My name is {} and my address is {}</p>
+                "<p>Hi,</p>
+                <p>My name is {} and my address is {}</p>
         <p>Unfortunately It looks like we do not have any bags anymore ?</p>
         <p>Could you please send us some new ones ?</p>
         <p>Thank you very much !</p>
