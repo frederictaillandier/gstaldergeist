@@ -114,10 +114,12 @@ async fn send_scheduled_messages(
     loop {
         let now = chrono::Local::now();
         let next_trigger = shared_task.lock().unwrap().next_trigger;
+        let master_name = data_grabber::grab_tomorrow_food_master_name(&config).await;
         println!(
-            "tick now : {:?} next trigger: {:?}",
+            "tick now : {:?} next trigger: {:?}, master: {:?}",
             now.to_rfc2822(),
-            next_trigger.to_rfc2822()
+            next_trigger.to_rfc2822(),
+            master_name
         );
 
         if now < next_trigger {
