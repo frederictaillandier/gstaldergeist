@@ -14,7 +14,8 @@ async fn send(bot: &Bot, channel: i64, message: &str) {
 }
 
 async fn weekly_update(bot: &Bot, config: &super::Config, schedule: &TrashesSchedule) {
-    let global_chat_update_txt = format!("The new food master is {}.", schedule.master_name);
+    let global_chat_update_txt =
+        format!("The new food master is {}.", schedule.tomorrow_master_name);
     send(bot, config.global_channel_id, &global_chat_update_txt).await;
 
     let mut master_update_txt = String::new();
@@ -51,15 +52,15 @@ async fn weekly_update(bot: &Bot, config: &super::Config, schedule: &TrashesSche
         This week you need to put these trashes in front of the house before 7am.\n\
         Here is the schedule:\n\
         {}",
-        schedule.master_name, master_update_txt
+        schedule.tomorrow_master_name, master_update_txt
     );
-    bot.send_message(ChatId(schedule.master_id), &master_update_txt)
+    bot.send_message(ChatId(schedule.tomorrow_master_id), &master_update_txt)
         .await
         .unwrap();
 
     let request_bags_txt =
         format!("Can you look if we still have enough We-Recycle bags? Do we need to order new?");
-    bot.send_message(ChatId(schedule.master_id), &request_bags_txt)
+    bot.send_message(ChatId(schedule.tomorrow_master_id), &request_bags_txt)
         .reply_markup(keyboard)
         .await
         .unwrap();
@@ -80,7 +81,7 @@ async fn daily_update(
                 .fold(String::new(), |acc, trash| format!("{} {}", acc, trash));
             let daily_update_txt = format!(
                 "Hello {} !\nDon't forget the{} trashes out before tomorrow morning!",
-                schedule.master_name, trashes_str
+                schedule.tomorrow_master_name, trashes_str
             );
 
             let keyboard = InlineKeyboardMarkup::new(vec![
@@ -90,7 +91,7 @@ async fn daily_update(
             ]);
 
             let res = bot
-                .send_message(ChatId(schedule.master_id), &daily_update_txt)
+                .send_message(ChatId(schedule.tomorrow_master_id), &daily_update_txt)
                 .reply_markup(keyboard)
                 .await;
             match res {
@@ -102,10 +103,10 @@ async fn daily_update(
         None => {
             send(
                 bot,
-                schedule.master_id,
+                schedule.tomorrow_master_id,
                 &format!(
                     "Hi {}\nNo trashes tomorrow!\nHave a nice evening.",
-                    schedule.master_name
+                    schedule.tomorrow_master_name
                 ),
             )
             .await;
@@ -138,7 +139,7 @@ pub async fn shame_update(bot: &Bot, config: &super::Config, schedule: &TrashesS
 
         let shame_update_txt = format!(
             "Unfortunately {} is not able to fulfill his role as Food master today...Could someone put the {} trashes out before tomorrow morning? Have a nice evening!",
-            schedule.master_name, trashes_str
+            schedule.tomorrow_master_name, trashes_str
         );
         send(bot, config.global_channel_id, &shame_update_txt).await;
     }
