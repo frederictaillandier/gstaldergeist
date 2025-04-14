@@ -42,15 +42,54 @@ pub struct TrashesSchedule {
     pub dates: HashMap<NaiveDate, Vec<TrashType>>,
     pub master_name: String,
     pub master_id: i64,
+    pub tomorrow_master_name: String,
+    pub tomorrow_master_id: i64,
 }
 
-async fn current_food_master_id(config: &super::Config) -> i64 {
-    let chat_id = config.flatmates
-        [(2 + chrono::Local::now().iso_week().week0() as usize) % config.flatmates.len()];
+async fn tomorrow_food_master_id(config: &super::Config) -> i64 {
+    let tomorrow = chrono::Local::now().naive_local().date() + chrono::Duration::days(1);
+
+    let chat_id =
+        config.flatmates[(1 + tomorrow.iso_week().week0() as usize) % config.flatmates.len()];
     chat_id
 }
 
-async fn grab_current_food_master_name(config: &super::Config) -> String {
+async fn grab_tomorrow_food_master_name(config: &super::Config) -> String {
+    let tomorrow = chrono::Local::now().naive_local().date() + chrono::Duration::days(1);
+    let client = reqwest::Client::new();
+
+    let bot_token = &config.bot_token;
+    let chat_id =
+        &config.flatmates[(1 + tomorrow.iso_week().week0() as usize) % config.flatmates.len()];
+
+    let url = format!(
+        "https://api.telegram.org/bot{}/getChat?chat_id={}",
+        bot_token, chat_id
+    );
+
+    let response = client
+        .get(url)
+        .send()
+        .await
+        .unwrap()
+        .json::<ChatResult>()
+        .await;
+    match response {
+        Ok(response) => {
+            let mut chat_info = response.result;
+            chat_info.title.split_off(17)
+        }
+        Err(_) => "Error".to_string(),
+    }
+}
+
+async fn today_food_master_id(config: &super::Config) -> i64 {
+    let chat_id = config.flatmates
+        [(1 + chrono::Local::now().iso_week().week0() as usize) % config.flatmates.len()];
+    chat_id
+}
+
+async fn grab_today_food_master_name(config: &super::Config) -> String {
     let client = reqwest::Client::new();
 
     let bot_token = &config.bot_token;
@@ -94,7 +133,9 @@ pub async fn get_trashes(
 
     TrashesSchedule {
         dates,
-        master_name: grab_current_food_master_name(config).await,
-        master_id: current_food_master_id(config).await,
+        master_name: grab_today_food_master_name(config).await,
+        master_id: today_food_master_id(config).await,
+        tomorrow_master_name: grab_tomorrow_food_master_name(config).await,
+        tomorrow_master_id: tomorrow_food_master_id(config).await,
     }
 }
