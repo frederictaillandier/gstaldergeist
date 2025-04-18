@@ -19,9 +19,7 @@ jobs:
           systemctl status podman.socket
       - name: Podman build and tag
         run: |
-          podman build -t gstaldergeist:latest .
+          podman build -t ghcr.io/${{ github.repository_owner }}/gstaldergeist:latest .
       - name: push to registry
         run: |
-          podman login -u ${{ secrets.REGISTRY_USERNAME }} -p ${{ secrets.REGISTRY_PASSWORD }} ${{ secrets.REGISTRY_URL }}
-          podman tag gstaldergeist:latest ${{ secrets.REGISTRY_URL }}/gstaldergeist:latest
-          podman push ${{ secrets.REGISTRY_URL }}/gstaldergeist:latest
+          podman push ghcr.io/${{ github.repository_owner }}/gstaldergeist:latest
