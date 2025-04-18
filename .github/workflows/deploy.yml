@@ -22,6 +22,9 @@ jobs:
       - name: Podman build and tag
         run: |
           podman build -t ghcr.io/${{ github.repository_owner }}/gstaldergeist:latest .
+      - name: Login to GitHub Container Registry
+        run: |
+          podman login -u ${{ github.repository_owner }} -p ${{ secrets.GITHUB_TOKEN }} ghcr.io
       - name: push to registry
         run: |
           podman push ghcr.io/${{ github.repository_owner }}/gstaldergeist:latest
