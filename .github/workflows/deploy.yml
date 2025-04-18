@@ -1,5 +1,7 @@
 name: Deploy Gstaldergeist
-
+permissions:
+  packages: write
+  contents: read
 on:
   push:
     branches:
