@@ -1,47 +1,25 @@
-name: Deploy Gstaldergeist with Podman
+name: Deploy Gstaldergeist
 
 on:
   push:
     branches:
-      - main
-  workflow_dispatch:
+      - main # Triggers only when you push to this branch
+  workflow_dispatch: # Enables manual trigger
 
 jobs:
-  build_and_push:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up Podman
-        uses: redhat-actions/podman-build@v2
-        with:
-          command: version # Verify Podman installation
-
-      - name: Login to GitHub Container Registry
-        run: |
-          podman login -u ${{ github.repository_owner }} -p ${{ secrets.GITHUB_TOKEN }} ghcr.io
-
-      - name: Build and push container image
-        uses: redhat-actions/podman-build@v2
-        with:
-          tags: ghcr.io/${{ github.repository }}:latest
-          push: true
-          build_args: |
-            BUILDKIT_INLINE_CACHE=1 # Optional: Enable BuildKit inline cache
-
   deploy:
-    needs: build_and_push
     runs-on: ubuntu-latest
-    timeout-minutes: 30 # Likely much shorter now
+    timeout-minutes: 60
     steps:
-      - name: Deploy to server
-        uses: appleboy/ssh-action@v0.1.10
-        with:
-          host: ${{ secrets.HOST }}
-          username: ${{ secrets.USERNAME }}
-          key: ${{ secrets.SSH_KEY }}
-          port: ${{ secrets.PORT }}
-          script: |
-            cd ~/ansible-deploy
-            ansible-playbook deploy_podman.yml
+      - name: Start Podman Socket
+        run: |
+          sudo systemctl start podman.socket
+          systemctl status podman.socket
+      - name: Podman build and tag
+        run: |
+          podman build -t gstaldergeist:latest .
+      - name: push to registry
+        run: |
+          podman login -u ${{ secrets.REGISTRY_USERNAME }} -p ${{ secrets.REGISTRY_PASSWORD }} ${{ secrets.REGISTRY_URL }}
+          podman tag gstaldergeist:latest ${{ secrets.REGISTRY_URL }}/gstaldergeist:latest
+          podman push ${{ secrets.REGISTRY_URL }}/gstaldergeist:latest
