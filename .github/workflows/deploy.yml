@@ -9,7 +9,7 @@ on:
   workflow_dispatch: # Enables manual trigger
 
 jobs:
-  deploy:
+  push-to-registry:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
@@ -28,3 +28,19 @@ jobs:
       - name: push to registry
         run: |
           podman push ghcr.io/${{ github.repository_owner }}/gstaldergeist:latest
+
+  deploy-testing:
+    runs-on: ubuntu-latest
+    needs: push-to-registry
+    steps:
+      - name: Ssh to server
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.HOST }}
+          username: ${{ secrets.USERNAME }}
+          key: ${{ secrets.SSH_KEY }}
+          port: ${{ secrets.PORT }}
+          script: |
+            cd gstaldergeist
+            git pull origin main
+            ansible-playbook playbook.yml -i inventory.ini  -l testing

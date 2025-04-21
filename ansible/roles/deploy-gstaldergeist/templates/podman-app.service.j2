@@ -1,0 +1,16 @@
+[Unit]
+Description={{ app_name }} container
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+ExecStartPre=-/usr/bin/podman rm -f {{ podman_container_name }}
+ExecStart=/usr/bin/podman run --name {{ podman_container_name }} --env-file {{ env_file_path }} -p 8080:8080 {{ podman_image_name }}
+ExecStop=/usr/bin/podman stop -t 10 {{ podman_container_name }}
+ExecStopPost=/usr/bin/podman rm -f {{ podman_container_name }}
+Restart=always
+RestartSec=30
+
+[Install]
+WantedBy=default.target

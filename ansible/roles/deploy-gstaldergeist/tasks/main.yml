@@ -1,0 +1,78 @@
+---
+- name: Ensure app directory exists
+  file:
+    path: "{{ app_directory }}"
+    state: directory
+    mode: "0755"
+    owner: "{{ ansible_user_id }}"
+    group: "{{ ansible_user_id }}"
+  become: yes
+
+- name: Pull Podman image if it doesn't exist
+  command: "podman image inspect {{ podman_image_name }}"
+  register: image_inspection
+  ignore_errors: yes
+  changed_when: image_inspection.rc != 0
+
+- name: Pull Podman image
+  command: "podman push ghcr.io/${{ github.repository_owner }}/{{ podman_image_name }}:latest"
+  when: image_inspection.rc != 0
+  register: image_pull
+  changed_when: image_pull.rc != 0
+
+- name: Stop existing Podman container if it exists
+  shell: "podman container exists {{ podman_container_name }} && podman stop {{ podman_container_name }} && podman rm {{ podman_container_name }} || true"
+  register: container_stop
+  changed_when: container_stop.rc == 0
+
+- name: Run Podman container
+  shell: >
+    podman run -d
+    --name {{ podman_container_name }}
+    --restart=always
+    --env-file {{ env_file_path }}
+    --log-driver json-file --log-opt path={{ app_directory }}/container.log
+    {{ podman_image_name }}
+  when: image_pull.changed or container_stop.changed
+  register: container_run
+  changed_when: container_run.rc == 0
+
+- name: Ensure systemd user directory exists
+  file:
+    path: "~/.config/systemd/user"
+    state: directory
+    mode: "0755"
+  become: no
+
+- name: Create systemd service for Podman container
+  template:
+    src: podman-app.service.j2
+    dest: "~/.config/systemd/user/{{ app_name }}.service"
+  register: systemd_service
+  become: no
+
+- name: Reload systemd user daemon
+  shell: systemctl --user daemon-reload
+  when: systemd_service.changed
+  become: no
+
+- name: Enable and start the service
+  shell: systemctl --user enable --now {{ app_name }}.service
+  when: systemd_service.changed
+  become: no
+
+- name: Enable lingering for user
+  become: yes
+  command: loginctl enable-linger {{ ansible_user_id }}
+  changed_when: false
+
+- name: Check service status
+  shell: systemctl --user status {{ app_name }}.service
+  register: service_status
+  changed_when: false
+  failed_when: false
+  become: no
+
+- name: Display service status
+  debug:
+    var: service_status.stdout_lines
