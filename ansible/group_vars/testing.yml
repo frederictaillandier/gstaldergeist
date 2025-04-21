@@ -1,0 +1,6 @@
+---
+app_name: gstaldergeist
+app_directory: /opt/{{ app_name }}/testing
+podman_image_name: "{{ app_name }}:latest"
+podman_container_name: "{{ app_name }}-testing"
+env_file_path: "{{ app_directory }}/.env"
