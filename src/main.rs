@@ -124,9 +124,10 @@ async fn send_scheduled_messages(
 
         if now < next_trigger {
             tokio::time::sleep(tokio::time::Duration::from_secs(10)).await;
+            println!("Waiting for next trigger...");
             continue;
         }
-
+        println!("Trigger pass...");
         let today = chrono::Local::now().date_naive();
         let weekly = (today.weekday().number_from_monday() == 7
             && shared_task.lock().unwrap().state == TaskState::None)
