@@ -47,7 +47,7 @@
 - name: Create systemd service for Podman container
   template:
     src: podman-app.service.j2
-    dest: "~/.config/systemd/user/{{ app_name }}.service"
+    dest: "~/.config/systemd/user/{{ app_name }}-{{ env }}.service"
   register: systemd_service
   become: no
 
@@ -57,7 +57,7 @@
   become: no
 
 - name: Enable and start the service
-  shell: systemctl --user enable --now {{ app_name }}.service
+  shell: systemctl --user enable --now {{ app_name }}-{{ env }}.service
   when: systemd_service.changed
   become: no
 
@@ -67,7 +67,7 @@
   changed_when: false
 
 - name: Check service status
-  shell: systemctl --user status {{ app_name }}.service
+  shell: systemctl --user status {{ app_name }}-{{ env }}.service
   register: service_status
   changed_when: false
   failed_when: false

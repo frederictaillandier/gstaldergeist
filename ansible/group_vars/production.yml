@@ -1,7 +1,7 @@
 ---
 app_name: gstaldergeist
-repository_url: https://github.com/frederictaillandier/gstaldergeist.git
-app_directory: /opt/{{ app_name }}/production
+env: production
+app_directory: /opt/{{ app_name }}/{{ env }}
 podman_image_name: "{{ app_name }}:latest"
-podman_container_name: "{{ app_name }}-production"
+podman_container_name: "{{ app_name }}-{{ env }}"
 env_file_path: "{{ app_directory }}/.env"
