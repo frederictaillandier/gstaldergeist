@@ -41,6 +41,6 @@ jobs:
           key: ${{ secrets.SSH_KEY }}
           port: ${{ secrets.PORT }}
           script: |
-            cd gstaldergeist
+            cd ~/gstaldergeist/ansible
             git pull origin main
             ansible-playbook playbook.yml -i inventory.ini  -l testing
