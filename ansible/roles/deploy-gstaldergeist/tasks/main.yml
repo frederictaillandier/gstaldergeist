@@ -8,17 +8,11 @@
     group: "{{ ansible_user_id }}"
   become: yes
 
-- name: Pull Podman image if it doesn't exist
-  command: "podman image inspect {{ podman_image_name }}"
-  register: image_inspection
-  ignore_errors: yes
-  changed_when: image_inspection.rc != 0
-
 - name: Pull Podman image
-  command: "podman push ghcr.io/${{ github.repository_owner }}/{{ podman_image_name }}:latest"
-  when: image_inspection.rc != 0
+  command: "podman pull ghcr.io/${{ github.repository_owner }}/{{ podman_image_name }}:latest"
   register: image_pull
-  changed_when: image_pull.rc != 0
+  changed_when: image_pull.rc == 0
+  ignore_errors: yes
 
 - name: Stop existing Podman container if it exists
   shell: "podman container exists {{ podman_container_name }} && podman stop {{ podman_container_name }} && podman rm {{ podman_container_name }} || true"
