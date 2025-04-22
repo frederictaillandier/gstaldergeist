@@ -9,7 +9,7 @@
   become: yes
 
 - name: Pull Podman image
-  command: "podman pull ghcr.io/${{ github.repository_owner }}/{{ podman_image_name }}:latest"
+  command: "podman pull ghcr.io/frederictaillandier/{{ podman_image_name }}:latest"
   register: image_pull
   changed_when: image_pull.rc == 0
   ignore_errors: yes
