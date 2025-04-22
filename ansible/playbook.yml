@@ -1,8 +1,5 @@
 ---
 - name: Deploy Gstaldergeist
-  hosts: production
-  vars_files:
-    - roles/gstaldergeist/vars/main.yml
-
+  hosts: testing
   roles:
-    - gstaldergeist
+    - deploy-gstaldergeist
