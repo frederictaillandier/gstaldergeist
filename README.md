@@ -1,6 +1,7 @@
 <div align="center">
-  <img src="https://github.com/user-attachments/assets/6523ebf7-57bd-4f1a-b720-4452188c4836" alt="Alt text" width="300" height="300">
+  <img src="https://github.com/user-attachments/assets/bcc3cd27-5008-4491-8c53-0b12a35f00c5" alt="Alt text" width="300" height="300">
 </div>
+
 
 # Gstaldergeist
 
