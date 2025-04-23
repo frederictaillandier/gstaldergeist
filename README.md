@@ -42,6 +42,3 @@ The main version of the bot is running on a european cloud provider [KIMSUFI](ht
 
 ![image](https://github.com/frederictaillandier/GstalderBot/assets/5926779/96835696-8428-4a25-8309-3a1ea17c90b8)
 ![image](https://github.com/frederictaillandier/GstalderBot/assets/5926779/733c27bb-086e-4016-ab94-35e8820a77bc)
-
-<img src="https://github.com/user-attachments/assets/b10e2eaa-3490-41bf-bd25-145dda28d3cf" alt="Alt text" width="256" height="90">
-<img src="https://github.com/user-attachments/assets/02357792-9efe-4263-b59b-6fbe9d0df23d" alt="Alt text" width="256" height="90">
