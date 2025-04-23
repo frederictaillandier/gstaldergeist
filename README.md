@@ -1,4 +1,4 @@
-<div style="text-align: center;">
+<div align="center">
   <img src="https://github.com/user-attachments/assets/d5561eec-ba3c-4c98-af29-0d8744e6d53d" alt="Alt text" width="300" height="300">
 </div>
 # Gstaldergeist
