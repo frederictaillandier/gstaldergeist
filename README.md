@@ -1,8 +1,9 @@
-<img src="https://github.com/user-attachments/assets/8454404a-5b9c-42b6-bef5-37834dd75675" alt="Alt text" width="300" height="300">
-
+<div style="text-align: center;">
+  <img src="https://github.com/user-attachments/assets/d5561eec-ba3c-4c98-af29-0d8744e6d53d" alt="Alt text" width="300" height="300">
+</div>
 # Gstaldergeist
 
-A telegram chatbot to manage a shared house's chores.
+A rust telegram chatbot to manage a shared house's chores.
 It assigns to a flatmate the role of trash dispenser for a week by senting reminder everyday.
 If collects data from the city of Adliswil and We-Recycle
 ![image](https://github.com/user-attachments/assets/b10e2eaa-3490-41bf-bd25-145dda28d3cf)
