@@ -7,10 +7,10 @@ A rust telegram chatbot to manage a shared house's chores.
 It assigns to a flatmate the role of trash dispenser for a week by senting reminder everyday.
 If collects data from the city of Adliswil and We-Recycle.
 
-```
+
 <img src="https://github.com/user-attachments/assets/b10e2eaa-3490-41bf-bd25-145dda28d3cf" alt="Alt text" width="256" height="90">
 <img src="https://github.com/user-attachments/assets/02357792-9efe-4263-b59b-6fbe9d0df23d" alt="Alt text" width="256" height="90">
-```
+
 
 ## Install and Use
 
