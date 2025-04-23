@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="https://github.com/user-attachments/assets/d5561eec-ba3c-4c98-af29-0d8744e6d53d" alt="Alt text" width="300" height="300">
+  <img src="https://github.com/user-attachments/assets/c3d3ceb9-3230-4134-b355-3ad549e42791" alt="Alt text" width="300" height="300">
 </div>
 
 # Gstaldergeist
