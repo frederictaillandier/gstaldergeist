@@ -1,5 +1,4 @@
-![image](https://github.com/user-attachments/assets/8454404a-5b9c-42b6-bef5-37834dd75675)
-![image](https://github.com/user-attachments/assets/d5561eec-ba3c-4c98-af29-0d8744e6d53d)
+<img src="https://github.com/user-attachments/assets/8454404a-5b9c-42b6-bef5-37834dd75675" alt="Alt text" width="300" height="300">
 
 # Gstaldergeist
 
