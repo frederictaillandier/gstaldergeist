@@ -173,6 +173,7 @@ async fn send_scheduled_messages(
                         )
                         .unwrap();
                     shared_task.next_trigger = tomorrow_evening;
+                    shared_task.state = TaskState::None;
                 } else {
                     shared_task.state = TaskState::Pending;
                     shared_task.next_trigger =
@@ -199,7 +200,6 @@ async fn send_scheduled_messages(
                         00,
                     )
                     .unwrap();
-
                 shared_task.next_trigger = tomorrow_evening;
             }
         }
