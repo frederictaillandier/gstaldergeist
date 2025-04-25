@@ -75,7 +75,7 @@ pub async fn get_trashes(from: NaiveDate, to: NaiveDate) -> HashMap<NaiveDate, V
 
     let mut result = HashMap::new();
     for date in extracted_dates {
-        if date >= from && date < to {
+        if date > from && date <= to {
             result
                 .entry(date)
                 .or_insert_with(Vec::new)
