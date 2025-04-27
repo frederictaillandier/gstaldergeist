@@ -12,9 +12,17 @@ If collects data from the city of Adliswil and We-Recycle.
 
 ## Install and Use
 
-For custome configuration these env variables are expected
+With podman
+```
+podman pull ghcr.io/frederictaillandier/gstaldergeist
+podman run -d --env-file .env gstaldergeist
+```
+or
+```
+cargo run --release
+```
 
-`GSTALDERCONFIG_PROD`
+For custome configuration these env variables are expected
 ```
 export TELEGRAM_BOT_TOKEN="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
 export TELEGRAM_CHANNEL_ID="-654654654654"
