@@ -110,7 +110,7 @@ async fn send_scheduled_messages(
     config: Config,
     shared_task: std::sync::Arc<std::sync::Mutex<SharedTaskState>>,
     bot: Bot,
-) -> Result<(), Box<dyn Error + Send + Sync>> {
+) -> Result<(), String> {
     loop {
         let now = chrono::Local::now();
         let next_trigger = shared_task.lock().unwrap().next_trigger;
@@ -138,7 +138,7 @@ async fn send_scheduled_messages(
             today + chrono::Duration::days(1)
         };
 
-        let trashes_schedule = data_grabber::get_trashes(&config, today, until_date).await;
+        let trashes_schedule = data_grabber::get_trashes(&config, today, until_date).await.map_err(|e| e.to_string())?;
         if shared_task.lock().unwrap().reminders_sent >= config.nb_reminders
             || shared_task.lock().unwrap().state == TaskState::Failed
         {
