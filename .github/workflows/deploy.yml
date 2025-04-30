@@ -45,5 +45,5 @@ jobs:
           ssh-keyscan -H ${{ secrets.TESTING_HOST_IP }} >> ~/.ssh/known_hosts
 
       - name: Run Ansible Playbook
-        run: ansible-playbook -i inventory.ini playbook.yml -u ${{ secrets.USERNAME}}
+        run: ansible-playbook -i inventory.ini playbook.yml -u ${{ secrets.USERNAME}} -l testing
         working-directory: ./ansible
