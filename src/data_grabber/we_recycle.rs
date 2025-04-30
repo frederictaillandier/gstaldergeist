@@ -70,9 +70,6 @@ async fn download_pdf() -> Result<Vec<NaiveDate>, Box<dyn std::error::Error>> {
 
 pub async fn get_trashes(from: NaiveDate, to: NaiveDate) -> HashMap<NaiveDate, Vec<TrashType>> {
     let extracted_dates = download_pdf().await.unwrap();
-
-    println!("{:?}", extracted_dates);
-
     let mut result = HashMap::new();
     for date in extracted_dates {
         if date > from && date <= to {
@@ -82,6 +79,5 @@ pub async fn get_trashes(from: NaiveDate, to: NaiveDate) -> HashMap<NaiveDate, V
                 .push(TrashType::WeRecycle);
         }
     }
-
     result
 }
