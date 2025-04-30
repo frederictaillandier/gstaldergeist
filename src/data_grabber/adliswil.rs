@@ -20,7 +20,7 @@ struct AdliswilWaste {
     results: AdliswilWasteInfo,
 }
 
-pub async fn get_trashes(from: NaiveDate, to: NaiveDate) -> HashMap<NaiveDate, Vec<TrashType>> {
+pub async fn get_trashes(from: NaiveDate, to: NaiveDate) -> Result<HashMap<NaiveDate, Vec<TrashType>>, String> {
     let client = reqwest::Client::new();
 
     let url = format!(
@@ -32,40 +32,31 @@ pub async fn get_trashes(from: NaiveDate, to: NaiveDate) -> HashMap<NaiveDate, V
 
     match response {
         Ok(r) => {
+            let waste_json = r.text().await.map_err( |e| e.to_string() )?;
+            let wastes: AdliswilWaste = serde_json::from_str(&waste_json).map_err(|e| e.to_string())?;
+
             let mut result: HashMap<NaiveDate, Vec<TrashType>> = HashMap::new();
-
-            let wastes: Result<AdliswilWaste, serde_json::Error> =
-                serde_json::from_str(&r.text().await.unwrap());
-
-            match wastes {
-                Ok(waste_info) => {
-                    for event in waste_info.results.events {
-                        let naive = event.date.date_naive();
-                        if naive > from && naive <= to {
-                            let trastype = match event.waste_type {
-                                1 => super::TrashType::Normal,
-                                2 => super::TrashType::Bio,
-                                3 => super::TrashType::Cardboard,
-                                4 => super::TrashType::Paper,
-                                _ => continue,
-                            };
-                            result
-                                .entry(event.date.date_naive())
-                                .or_default()
-                                .push(trastype);
-                        }
-                    }
+            for event in wastes.results.events {
+                let naive = event.date.date_naive();
+                if naive > from && naive <= to {
+                    let trastype = match event.waste_type {
+                        1 => super::TrashType::Normal,
+                        2 => super::TrashType::Bio,
+                        3 => super::TrashType::Cardboard,
+                        4 => super::TrashType::Paper,
+                        _ => continue,
+                    };
                     result
-                }
-                Err(e) => {
-                    println!("error {}", e);
-                    HashMap::new()
+                        .entry(event.date.date_naive())
+                        .or_default()
+                        .push(trastype);
                 }
             }
+            Ok(result)
         }
         Err(e) => {
             println!("error {}", e);
-            HashMap::new()
+            Err(e.to_string())
         }
     }
 }

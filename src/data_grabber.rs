@@ -122,10 +122,8 @@ pub async fn get_trashes(
     from: NaiveDate,
     to: NaiveDate,
 ) -> TrashesSchedule {
-    let mut dates = adliswil::get_trashes(from, to).await;
+    let mut dates = adliswil::get_trashes(from, to).await.unwrap(); // todo: handle error
     let mut we_recycle = we_recycle::get_trashes(from, to).await;
-
-    println!("{:?}", we_recycle);
 
     for (date, trashes) in we_recycle.drain() {
         dates.entry(date).or_default().extend(trashes);
