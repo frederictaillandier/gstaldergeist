@@ -11,6 +11,7 @@ on:
 jobs:
   push-to-registry:
     runs-on: ubuntu-latest
+    environment: TESTING
     timeout-minutes: 60
     steps:
       - name: Checkout repository
@@ -47,3 +48,5 @@ jobs:
       - name: Run Ansible Playbook
         run: ansible-playbook -i inventory.ini playbook.yml -u ${{ secrets.USERNAME}} -l testing
         working-directory: ./ansible
+        env:
+          HOST_IP: ${{ secrets.TESTING_HOST_IP }}
