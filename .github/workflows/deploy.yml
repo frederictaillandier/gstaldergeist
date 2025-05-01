@@ -43,10 +43,10 @@ jobs:
       - name: Add Remote Host to Known Hosts
         run: |
           mkdir -p ~/.ssh
-          ssh-keyscan -H ${{ secrets.TESTING_HOST_IP }} >> ~/.ssh/known_hosts
+          ssh-keyscan -H ${{ secrets.HOST_IP }} >> ~/.ssh/known_hosts
 
       - name: Run Ansible Playbook
         run: ansible-playbook -i inventory.ini playbook.yml -u ${{ secrets.USERNAME}} -l testing
         working-directory: ./ansible
         env:
-          HOST_IP: ${{ secrets.TESTING_HOST_IP }}
+          HOST_IP: ${{ secrets.HOST_IP }}
