@@ -49,4 +49,4 @@ jobs:
         run: ansible-playbook -i inventory.ini playbook.yml -l testing
         working-directory: ./ansible
         env:
-          HOST_IP: ${{ secrets.HOST_IP }}
+          HOST_IP: 5.39.76.61
