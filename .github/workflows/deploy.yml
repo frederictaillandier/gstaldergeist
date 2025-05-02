@@ -50,3 +50,4 @@ jobs:
         working-directory: ./ansible
         env:
           HOST_IP: 5.39.76.61
+          USERNAME: ubuntu
