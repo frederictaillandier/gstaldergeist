@@ -38,13 +38,6 @@
     mode: "0755"
   become: no
 
-- name: Create env vars
-  template:
-    src: template_vars.yml.j2
-    dest: "group_vars/{{ env }}.yml"
-  register: testing_vars_create
-  changed_when: testing_vars_create.rc == 0
-
 - name: Create systemd service for Podman container
   template:
     src: podman-app.service.j2
