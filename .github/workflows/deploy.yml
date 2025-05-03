@@ -46,8 +46,7 @@ jobs:
           ssh-keyscan -H ${{ secrets.HOST_IP }} >> ~/.ssh/known_hosts
 
       - name: Run Ansible Playbook
-        run: ansible-playbook -i inventory.ini playbook.yml -l testing
+        run: ansible-playbook -i inventory.ini playbook.yml -l testing -e "host_ip=${{ secrets.HOST_IP }}"
         working-directory: ./ansible
         env:
-          HOST_IP: 5.39.76.61
           USERNAME: ubuntu

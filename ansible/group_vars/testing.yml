@@ -5,5 +5,5 @@ app_directory: /opt/{{ app_name }}/{{ env }}
 podman_image_name: "{{ app_name }}:latest"
 podman_container_name: "{{ app_name }}-{{ env }}"
 env_file_path: "{{ app_directory }}/.env"
-ansible_host: "{{ HOST_IP }}"
+ansible_host: "{{ host_ip }}"
 ansible_user: ubuntu
