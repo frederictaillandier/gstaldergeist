@@ -21,11 +21,11 @@
 
 - name: Create .env file from variable content
   ansible.builtin.copy:
-  dest: /opt/my-app/.env2
-  content: "{{ config }}"
-  owner: ubuntu
-  group: ubuntu
-  mode: "0640"
+    dest: /opt/my-app/.env2
+    content: "{{ config }}"
+    owner: ubuntu
+    group: ubuntu
+    mode: "0640"
 
 - name: Run Podman container
   shell: >
