@@ -19,6 +19,14 @@
   register: container_stop
   changed_when: container_stop.rc == 0
 
+- name: Create .env file from variable content
+  ansible.builtin.copy:
+  dest: /opt/my-app/.env2
+  content: "{{ config }}"
+  owner: ubuntu
+  group: ubuntu
+  mode: "0640"
+
 - name: Run Podman container
   shell: >
     podman run -d
