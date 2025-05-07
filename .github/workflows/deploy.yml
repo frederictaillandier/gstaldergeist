@@ -32,7 +32,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.x'
+          python-version: "3.x"
       - name: Install Ansible
         run: |
           pip install ansible
@@ -46,7 +46,7 @@ jobs:
           ssh-keyscan -H ${{ secrets.HOST_IP }} >> ~/.ssh/known_hosts
 
       - name: Run Ansible Playbook
-        run: ansible-playbook -i inventory.ini playbook.yml -l testing -e "host_ip=${{ secrets.HOST_IP }}"
+        run: ansible-playbook -i inventory.ini playbook.yml -l testing -e "host_ip=${{ secrets.HOST_IP }},config_content=${{ secrets.ENV }}"
         working-directory: ./ansible
         env:
           USERNAME: ubuntu
