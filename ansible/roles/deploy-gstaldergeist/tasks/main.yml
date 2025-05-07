@@ -21,7 +21,7 @@
 
 - name: Create .env file from variable content
   ansible.builtin.copy:
-    dest: /opt/my-app/.env2
+    dest: "{{app_directory}}/.env2"
     content: "{{ config }}"
     owner: ubuntu
     group: ubuntu
