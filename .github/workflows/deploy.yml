@@ -20,6 +20,9 @@ jobs:
         run: |
           sudo systemctl start podman.socket
           systemctl status podman.socket
+      - name: pull latest image to get base layers
+        run: |
+          podman pull ghcr.io/${{ github.repository_owner }}/gstaldergeist:latest
       - name: Podman build and tag
         run: |
           podman build -t ghcr.io/${{ github.repository_owner }}/gstaldergeist:latest .
