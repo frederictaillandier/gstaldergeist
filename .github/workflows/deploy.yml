@@ -45,8 +45,11 @@ jobs:
           mkdir -p ~/.ssh
           ssh-keyscan -H ${{ secrets.HOST_IP }} >> ~/.ssh/known_hosts
 
-      - name: Run Ansible Playbook
-        run: ansible-playbook -i inventory.ini playbook.yml -l testing -e "host_ip=${{ secrets.HOST_IP }}" -e "config_content=${{ secrets.ENV }}"
+      - name: Generate Ansible Vars File
+        run: |
+          echo "host_ip: ${{ secrets.HOST_IP }}" >> ./group_vars/testing.yml
         working-directory: ./ansible
-        env:
-          USERNAME: ubuntu
+
+      - name: Run Ansible Playbook
+        run: ansible-playbook -i inventory.ini playbook.yml -l testing
+        working-directory: ./ansible
