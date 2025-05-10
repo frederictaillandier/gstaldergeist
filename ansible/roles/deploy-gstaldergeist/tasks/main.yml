@@ -13,7 +13,7 @@
     dest: "{{ env_file_path }}2"
     owner: "{{ ansible_user_id }}"
     group: "{{ ansible_user_id }}"
-    src: "./ansible/.env"
+    src: ".env"
     mode: "0644"
   become: true
   register: env_file
