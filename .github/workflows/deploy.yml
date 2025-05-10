@@ -52,9 +52,10 @@ jobs:
           echo "ansible_user: ${{ secrets.ANSIBLE_USER }}" >> $CONFIG_PATH
         working-directory: ./ansible
 
-      - name: debug vars file
+      - name: Generate Env File
         run: |
-          cat $CONFIG_PATH
+          export CONFIG_PATH=./ansible/.env
+          echo "TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}" >> $CONFIG_PATH
         working-directory: ./ansible
 
       - name: Run Ansible Playbook
