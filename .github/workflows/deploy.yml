@@ -52,6 +52,11 @@ jobs:
           echo "ansible_user: ${{ secrets.ANSIBLE_USER }}" >> $CONFIG_PATH
         working-directory: ./ansible
 
+      - name: debug vars file
+        run: |
+          cat $CONFIG_PATH
+        working-directory: ./ansible
+
       - name: Run Ansible Playbook
         run: ansible-playbook -i inventory.ini playbook.yml -l testing
         working-directory: ./ansible
