@@ -4,6 +4,24 @@ use regex::Regex;
 
 use std::collections::HashMap;
 
+pub struct WeRecycleWasteGrabber;
+
+impl super::WasteGrabber for WeRecycleWasteGrabber {
+    async fn get_trashes(self, from: NaiveDate, to: NaiveDate) -> Result<HashMap<NaiveDate, Vec<TrashType>>, String> {
+        let extracted_dates = download_pdf().await.map_err(|err| err.to_string())?;
+        let mut result = HashMap::new();
+        for date in extracted_dates {
+            if date > from && date <= to {
+                result
+                    .entry(date)
+                    .or_insert_with(Vec::new)
+                    .push(TrashType::WeRecycle);
+            }
+        }
+        Ok(result)
+    }
+}
+
 fn regex_caps_to_datetime(caps: &regex::Captures) -> Option<NaiveDate> {
     let date = &caps[1];
 
@@ -66,18 +84,4 @@ async fn download_pdf() -> Result<Vec<NaiveDate>, Box<dyn std::error::Error>> {
     }
     result.sort();
     Ok(result)
-}
-
-pub async fn get_trashes(from: NaiveDate, to: NaiveDate) -> HashMap<NaiveDate, Vec<TrashType>> {
-    let extracted_dates = download_pdf().await.unwrap();
-    let mut result = HashMap::new();
-    for date in extracted_dates {
-        if date > from && date <= to {
-            result
-                .entry(date)
-                .or_insert_with(Vec::new)
-                .push(TrashType::WeRecycle);
-        }
-    }
-    result
 }

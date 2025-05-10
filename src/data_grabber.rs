@@ -25,6 +25,12 @@ struct ChatInfo {
     title: String,
 }
 
+// Unfortunately async traits are not supported in Rust yet, so we need to use a workaround.
+// some crates allow this but it has performances overhead
+pub trait WasteGrabber {
+    async fn get_trashes(self, from: NaiveDate, to: NaiveDate) -> Result<HashMap<NaiveDate, Vec<TrashType>>, String>;
+}
+
 impl fmt::Display for TrashType {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
@@ -121,19 +127,26 @@ pub async fn get_trashes(
     config: &super::Config,
     from: NaiveDate,
     to: NaiveDate,
-) -> TrashesSchedule {
-    let mut dates = adliswil::get_trashes(from, to).await.unwrap(); // todo: handle error
-    let mut we_recycle = we_recycle::get_trashes(from, to).await;
+) -> Result<TrashesSchedule, String> {
 
-    for (date, trashes) in we_recycle.drain() {
+    // unfortunately traits do not implement async
+    let adliswil_grabber = adliswil::AdliswilWasteGrabber {};
+    let we_recycle_grabber = we_recycle::WeRecycleWasteGrabber {};
+
+    let mut dates =  adliswil_grabber
+        .get_trashes(from, to).await.map_err(|e| e.to_string())?;
+    let mut recycle = we_recycle_grabber
+        .get_trashes(from, to).await.map_err(|e| e.to_string())?;
+
+    for (date, trashes) in recycle.drain() {
         dates.entry(date).or_default().extend(trashes);
     }
 
-    TrashesSchedule {
+    Ok(TrashesSchedule {
         dates,
         master_name: grab_today_food_master_name(config).await,
         master_id: today_food_master_id(config).await,
         tomorrow_master_name: grab_tomorrow_food_master_name(config).await,
         tomorrow_master_id: tomorrow_food_master_id(config).await,
-    }
+    })
 }
