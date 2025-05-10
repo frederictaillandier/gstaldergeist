@@ -8,6 +8,16 @@
     group: "{{ ansible_user_id }}"
   become: yes
 
+- name: Ensure .env file exists
+  copy:
+    dest: "{{ env_file_path }}2"
+    owner: "{{ ansible_user_id }}"
+    group: "{{ ansible_user_id }}"
+    src: "./ansible/.env"
+    mode: "0644"
+  become: true
+  register: env_file
+
 - name: Pull Podman image
   command: "podman pull ghcr.io/frederictaillandier/{{ podman_image_name }}"
   register: image_pull
