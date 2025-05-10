@@ -43,7 +43,7 @@ jobs:
       - name: Add Remote Host to Known Hosts
         run: |
           mkdir -p ~/.ssh
-          ssh-keyscan -H ${{ secrets.HOST_IP }} >> ~/.ssh/known_hosts
+          ssh-keyscan -H ${{ secrets.ANSIBLE_HOST_IP }} >> ~/.ssh/known_hosts
 
       - name: Generate Ansible Vars File
         run: |
