@@ -39,7 +39,7 @@ jobs:
       - name: Setup SSH Agent and Add Key
         uses: webfactory/ssh-agent@v0.9.1
         with:
-          ssh-private-key: ${{ secrets.SSH_KEY }}
+          ssh-private-key: ${{ secrets.ANSIBLE_SSH_KEY }}
       - name: Add Remote Host to Known Hosts
         run: |
           mkdir -p ~/.ssh
@@ -47,8 +47,8 @@ jobs:
 
       - name: Generate Ansible Vars File
         run: |
-          export CONFIG_PATH=./group_vars/testing.yml
-          echo "ansible_host: ${{ secrets.HOST_IP }}" >> $CONFIG_PATH
+          CONFIG_PATH=./group_vars/testing.yml
+          echo "ansible_host: ${{ secrets.ANSIBLE_HOST_IP }}" >> $CONFIG_PATH
           echo "ansible_user: ${{ secrets.ANSIBLE_USER }}" >> $CONFIG_PATH
         working-directory: ./ansible
 
@@ -57,7 +57,12 @@ jobs:
           ALL_SECRETS_JSON: ${{ toJson(secrets) }}
         run: |
           CONFIG_PATH=".env"
-          echo "$ALL_SECRETS_JSON" | jq -r 'to_entries[] | "\(.key)=\(.value)"' > "$CONFIG_PATH"
+          EXCLUDE_PREFIX="ANSIBLE_"
+          jq -r '
+            to_entries[]
+            | select(.key | startswith("'"$EXCLUDE_PREFIX"'") | not)
+            | "\(.key)=\(.value)"
+          ' > "$CONFIG_PATH"
         working-directory: ./ansible
 
       - name: Run Ansible Playbook
