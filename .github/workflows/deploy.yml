@@ -55,6 +55,7 @@ jobs:
       - name: Generate Env File
         run: |
           export CONFIG_PATH=./ansible/.env
+          touch $CONFIG_PATH
           echo "TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}" >> $CONFIG_PATH
         working-directory: ./ansible
 
