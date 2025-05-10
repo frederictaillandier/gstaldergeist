@@ -48,8 +48,8 @@ jobs:
       - name: Generate Ansible Vars File
         run: |
           export CONFIG_PATH=./ansible/group_vars/testing.yml
-          echo "ansible_host ${{ secrets.HOST_IP }}" >> ${{ CONFIG_PATH }}
-          echo "ansible_user: ${{ secrets.ANSIBLE_USER }}" >> ${{ CONFIG_PATH }}
+          echo "ansible_host ${{ secrets.HOST_IP }}" >> $CONFIG_PATH
+          echo "ansible_user: ${{ secrets.ANSIBLE_USER }}" >> $CONFIG_PATH
         working-directory: ./ansible
 
       - name: Run Ansible Playbook
