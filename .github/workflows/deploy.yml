@@ -53,9 +53,11 @@ jobs:
         working-directory: ./ansible
 
       - name: Generate Env File
+        env:
+          ALL_SECRETS_JSON: ${{ toJson(secrets) }}
         run: |
-          export CONFIG_PATH=.env
-          echo "TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}" >> $CONFIG_PATH
+          CONFIG_PATH=".env"
+          echo "$ALL_SECRETS_JSON" | jq -r 'to_entries[] | "\(.key)=\(.value)"' > "$CONFIG_PATH"
         working-directory: ./ansible
 
       - name: Run Ansible Playbook
