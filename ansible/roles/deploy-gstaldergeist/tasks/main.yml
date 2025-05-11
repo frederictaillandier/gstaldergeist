@@ -10,7 +10,7 @@
 
 - name: Ensure .env file exists
   copy:
-    dest: "{{ env_file_path }}2"
+    dest: "{{ env_file_path }}"
     owner: "{{ ansible_user_id }}"
     group: "{{ ansible_user_id }}"
     src: ".env"
