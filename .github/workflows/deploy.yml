@@ -58,6 +58,7 @@ jobs:
         run: |
           CONFIG_PATH=".env"
           EXCLUDE_PREFIX="ANSIBLE_"
+          echo "$ALL_SECRETS_JSON" | \
           jq -r '
             to_entries[]
             | select(.key | startswith("'"$EXCLUDE_PREFIX"'") | not)
