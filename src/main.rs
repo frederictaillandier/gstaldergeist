@@ -1,7 +1,6 @@
 use chrono::{Datelike, TimeZone};
 use std::env;
 use std::error::Error;
-use teloxide::types::MaybeInaccessibleMessage;
 
 use teloxide::prelude::*;
 mod data_grabber;
