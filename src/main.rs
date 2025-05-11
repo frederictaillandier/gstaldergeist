@@ -1,6 +1,7 @@
-use chrono::{Datelike, TimeZone};
+use chrono::{Datelike, TimeZone, Timelike, Weekday};
 use std::env;
 use std::error::Error;
+use telegram_writer::{send_update, shame_update};
 use teloxide::types::MaybeInaccessibleMessage;
 
 use teloxide::prelude::*;
@@ -23,17 +24,12 @@ pub enum TaskState {
 pub struct SharedTaskState {
     state: TaskState,
     next_trigger: chrono::DateTime<chrono::Local>,
-    reminders_sent: u32,
 }
 
 pub struct Config {
     pub flatmates: Vec<i64>,
     pub global_channel_id: i64,
     pub bot_token: String,
-    pub immediate: bool,
-    pub force_weekly: bool,
-    pub delta_reminder_sec: i64,
-    pub nb_reminders: u32,
 }
 
 fn config() -> Config {
@@ -52,25 +48,10 @@ fn config() -> Config {
         })
         .collect();
 
-    let immediate = env::args().any(|arg| arg == "--immediate"); // used for test
-    let force_weekly = env::args().any(|arg| arg == "--force-weekly"); // used for test
-    let delta_reminder_sec = env::var("DELTA_REMINDER_SEC")
-        .expect("DELTA_REMINDER_SEC not set")
-        .parse()
-        .expect("DELTA_REMINDER_SEC must be a number");
-    let nb_reminders = env::var("NB_REMINDERS")
-        .expect("NB_REMINDERS not set")
-        .parse()
-        .expect("NB_REMINDERS must be a number");
-
     Config {
         flatmates,
         global_channel_id: channel_id,
         bot_token,
-        immediate,
-        force_weekly,
-        delta_reminder_sec,
-        nb_reminders,
     }
 }
 
@@ -82,7 +63,6 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     let task_state = std::sync::Arc::new(std::sync::Mutex::new(SharedTaskState {
         state: TaskState::None,
         next_trigger: chrono::Local::now(),
-        reminders_sent: 0,
     }));
     let app_state = dptree::deps![std::sync::Arc::clone(&task_state)];
     let scheduled_task = tokio::spawn(send_scheduled_messages(app, task_state, bot.clone()));
@@ -101,8 +81,35 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     if let Err(e) = scheduled_task.await {
         eprintln!("Scheduled task failed: {}", e);
     }
-
     Ok(())
+}
+
+async fn send_order_to_human(
+    config: &Config,
+    shared_task: std::sync::Arc<std::sync::Mutex<SharedTaskState>>,
+    bot: &Bot,
+    schedule: &data_grabber::TrashesSchedule,
+) {
+    send_update(
+        bot,
+        config,
+        schedule,
+        chrono::Local::now().weekday() == Weekday::Sun,
+        shared_task,
+    )
+    .await;
+}
+
+async fn control_human_accomplishment(
+    config: &Config,
+    shared_task: std::sync::Arc<std::sync::Mutex<SharedTaskState>>,
+    bot: &Bot,
+    schedule: &data_grabber::TrashesSchedule,
+) {
+    if shared_task.lock().unwrap().state == TaskState::Pending {
+        shame_update(bot, config, schedule).await;
+        shared_task.lock().unwrap().state = TaskState::None;
+    }
 }
 
 // Function to send messages on a schedule
@@ -113,25 +120,13 @@ async fn send_scheduled_messages(
 ) -> Result<(), Box<dyn Error + Send + Sync>> {
     loop {
         let now = chrono::Local::now();
-        let next_trigger = shared_task.lock().unwrap().next_trigger;
-        let master_name = data_grabber::grab_tomorrow_food_master_name(&config).await;
-        println!(
-            "tick now : {:?} next trigger: {:?}, master: {:?}",
-            now.to_rfc2822(),
-            next_trigger.to_rfc2822(),
-            master_name
-        );
-
+        let mut next_trigger = shared_task.lock().unwrap().next_trigger;
         if now < next_trigger {
-            tokio::time::sleep(tokio::time::Duration::from_secs(10)).await;
-            println!("Waiting for next trigger...");
+            tokio::time::sleep(tokio::time::Duration::from_secs(60)).await;
             continue;
         }
-        println!("Trigger pass...");
-        let today = chrono::Local::now().date_naive();
-        let weekly = (today.weekday().number_from_monday() == 7
-            && shared_task.lock().unwrap().state == TaskState::None)
-            || config.force_weekly;
+        let today = now.date_naive();
+        let weekly = now.weekday() == chrono::Weekday::Sun;
         let until_date = if weekly {
             today + chrono::Duration::days(7)
         } else {
@@ -139,70 +134,26 @@ async fn send_scheduled_messages(
         };
 
         let trashes_schedule = data_grabber::get_trashes(&config, today, until_date).await;
-        if shared_task.lock().unwrap().reminders_sent >= config.nb_reminders
-            || shared_task.lock().unwrap().state == TaskState::Failed
-        {
-            telegram_writer::shame_update(&bot, &config, &trashes_schedule).await;
-            shared_task.lock().unwrap().state = TaskState::Failed;
+
+        telegram_writer::send_update(
+            &bot,
+            &config,
+            &trashes_schedule,
+            weekly,
+            shared_task.clone(),
+        )
+        .await;
+
+        if next_trigger.hour() >= 21 {
+            control_human_accomplishment(&config, shared_task.clone(), &bot, &trashes_schedule)
+                .await;
+            next_trigger = next_trigger + chrono::Duration::days(1);
+            next_trigger = next_trigger.with_hour(18).unwrap();
         } else {
-            telegram_writer::send_update(
-                &bot,
-                &config,
-                &trashes_schedule,
-                weekly,
-                shared_task.clone(),
-            )
-            .await;
+            send_order_to_human(&config, shared_task.clone(), &bot, &trashes_schedule).await;
+            next_trigger = next_trigger.with_hour(21).unwrap();
         }
-        // Update the next trigger time
-        let mut shared_task = shared_task.lock().unwrap();
-        match shared_task.state {
-            TaskState::None => {
-                if trashes_schedule.dates.is_empty() {
-                    shared_task.state = TaskState::None;
-                    shared_task.reminders_sent = 0;
-                    let tomorrow = chrono::Local::now() + chrono::Duration::days(1);
-                    let tomorrow_evening = chrono::Local
-                        .with_ymd_and_hms(
-                            tomorrow.year(),
-                            tomorrow.month(),
-                            tomorrow.day(),
-                            18,
-                            00,
-                            00,
-                        )
-                        .unwrap();
-                    shared_task.next_trigger = tomorrow_evening;
-                    shared_task.state = TaskState::None;
-                } else {
-                    shared_task.state = TaskState::Pending;
-                    shared_task.next_trigger =
-                        now + chrono::Duration::seconds(config.delta_reminder_sec);
-                }
-            }
-            TaskState::Pending => {
-                shared_task.state = TaskState::Pending;
-                shared_task.next_trigger =
-                    now + chrono::Duration::seconds(config.delta_reminder_sec);
-                shared_task.reminders_sent += 1;
-            }
-            TaskState::Failed => {
-                shared_task.state = TaskState::None;
-                shared_task.reminders_sent = 0;
-                let tomorrow = chrono::Local::now() + chrono::Duration::days(1);
-                let tomorrow_evening = chrono::Local
-                    .with_ymd_and_hms(
-                        tomorrow.year(),
-                        tomorrow.month(),
-                        tomorrow.day(),
-                        18,
-                        00,
-                        00,
-                    )
-                    .unwrap();
-                shared_task.next_trigger = tomorrow_evening;
-            }
-        }
+        shared_task.lock().unwrap().next_trigger = next_trigger;
     }
 }
 
@@ -251,7 +202,6 @@ async fn handle_callback_query(
                         return Ok(());
                     }
                     task_state.state = TaskState::None;
-                    task_state.reminders_sent = 0;
                     // set next trigger to tomorrow 18:00
                     let tomorrow = chrono::Local::now() + chrono::Duration::days(1);
                     let tomorrow_evening = chrono::Local
@@ -279,7 +229,6 @@ async fn handle_callback_query(
                         return Ok(());
                     }
                     task_state.state = TaskState::Failed;
-                    task_state.reminders_sent = 0;
                     // set next trigger to now
                     task_state.next_trigger = chrono::Local::now();
                 }
@@ -317,18 +266,6 @@ async fn handle_callback_query(
                     bot.edit_message_text(chat_id, message.id(), "Great! Have a nice evening.")
                         .await?;
                 }
-                "aaa" => {
-                    // Handle "AAA" button
-                    bot.edit_message_text(chat_id, message.id(), "You clicked AAA!")
-                        .await?;
-                }
-                "bbb" => {
-                    // Handle "BBB" button
-                    bot.edit_message_text(chat_id, message.id(), "You clicked BBB!")
-                        .await?;
-                    email::request_new_bags();
-                }
-
                 _ => {
                     // Handle unknown callback data
                     bot.send_message(chat_id, "Unrecognized option.").await?;
