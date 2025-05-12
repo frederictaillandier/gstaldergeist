@@ -19,7 +19,7 @@
   register: env_file
 
 - name: Pull Podman image
-  command: "podman pull ghcr.io/frederictaillandier/{{ podman_image_name }}"
+  command: "podman pull ghcr.io/frederictaillandier/{{ podman_image_name }}:nightly"
   register: image_pull
   changed_when: image_pull.rc == 0
   ignore_errors: yes
