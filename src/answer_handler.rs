@@ -34,7 +34,6 @@ pub async fn handle_callback_query(
                         return Ok(());
                     }
                     task_state.state = TaskState::None;
-                    task_state.reminders_sent = 0;
                     // set next trigger to tomorrow 18:00
                     let tomorrow = chrono::Local::now() + chrono::Duration::days(1);
                     let tomorrow_evening = chrono::Local
@@ -62,7 +61,6 @@ pub async fn handle_callback_query(
                         return Ok(());
                     }
                     task_state.state = TaskState::Failed;
-                    task_state.reminders_sent = 0;
                     // set next trigger to now
                     task_state.next_trigger = chrono::Local::now();
                 }
@@ -100,18 +98,6 @@ pub async fn handle_callback_query(
                     bot.edit_message_text(chat_id, message.id(), "Great! Have a nice evening.")
                         .await?;
                 }
-                "aaa" => {
-                    // Handle "AAA" button
-                    bot.edit_message_text(chat_id, message.id(), "You clicked AAA!")
-                        .await?;
-                }
-                "bbb" => {
-                    // Handle "BBB" button
-                    bot.edit_message_text(chat_id, message.id(), "You clicked BBB!")
-                        .await?;
-                    email::request_new_bags();
-                }
-
                 _ => {
                     // Handle unknown callback data
                     bot.send_message(chat_id, "Unrecognized option.").await?;
