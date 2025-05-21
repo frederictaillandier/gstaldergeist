@@ -22,8 +22,10 @@ struct AdliswilWaste {
 
 
 pub struct AdliswilWasteGrabber;
+
+#[async_trait::async_trait]
 impl super::WasteGrabber for AdliswilWasteGrabber {
-    async fn get_trashes(self, from: NaiveDate, to: NaiveDate) -> Result<HashMap<NaiveDate, Vec<TrashType>>, String> {
+    async fn get_trashes(&self, from: NaiveDate, to: NaiveDate) -> Result<HashMap<NaiveDate, Vec<TrashType>>, String> {
         let client = reqwest::Client::new();
 
         let url = format!(

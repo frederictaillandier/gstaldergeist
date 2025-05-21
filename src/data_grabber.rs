@@ -3,6 +3,7 @@ mod we_recycle;
 use chrono::{Datelike, NaiveDate};
 use core::fmt;
 
+use async_trait::async_trait;
 use serde::Deserialize;
 use std::collections::HashMap;
 
@@ -25,10 +26,9 @@ struct ChatInfo {
     title: String,
 }
 
-// Unfortunately async traits are not supported in Rust yet, so we need to use a workaround.
-// some crates allow this but it has performances overhead
-pub trait WasteGrabber {
-    async fn get_trashes(self, from: NaiveDate, to: NaiveDate) -> Result<HashMap<NaiveDate, Vec<TrashType>>, String>;
+#[async_trait]
+pub trait WasteGrabber : Send + Sync{
+    async fn get_trashes(&self, from: NaiveDate, to: NaiveDate) -> Result<HashMap<NaiveDate, Vec<TrashType>>, String>;
 }
 
 impl fmt::Display for TrashType {
@@ -128,18 +128,20 @@ pub async fn get_trashes(
     from: NaiveDate,
     to: NaiveDate,
 ) -> Result<TrashesSchedule, String> {
-
     // unfortunately traits do not implement async
     let adliswil_grabber = adliswil::AdliswilWasteGrabber {};
     let we_recycle_grabber = we_recycle::WeRecycleWasteGrabber {};
 
-    let mut dates =  adliswil_grabber
-        .get_trashes(from, to).await.map_err(|e| e.to_string())?;
-    let mut recycle = we_recycle_grabber
-        .get_trashes(from, to).await.map_err(|e| e.to_string())?;
+    let grabbers: Vec<Box<dyn WasteGrabber>> = vec![
+            Box::new(adliswil_grabber),
+            Box::new(we_recycle_grabber),
+        ];
 
-    for (date, trashes) in recycle.drain() {
-        dates.entry(date).or_default().extend(trashes);
+    let mut dates :HashMap<NaiveDate, Vec<TrashType>> = HashMap::new();
+    for grabber in grabbers {
+        for (date, trash) in grabber.get_trashes(from, to).await.map_err(|e| e.to_string())? {
+            dates.entry(date).or_default().extend(trash);
+        }
     }
 
     Ok(TrashesSchedule {
