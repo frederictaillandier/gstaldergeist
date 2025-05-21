@@ -1,0 +1,10 @@
+.github/
+ansible/
+target/
+.env
+.env-example
+.git/
+.gitignore
+Dockerfile
+.dockerignore
+README.md
