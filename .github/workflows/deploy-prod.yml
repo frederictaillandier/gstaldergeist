@@ -1,17 +1,14 @@
-name: Deploy Gstaldergeist Testing
+name: Deploy Gstaldergeist Prod
 permissions:
   packages: write
   contents: read
 on:
-  push:
-    branches:
-      - main # Triggers only when you push to this branch
   workflow_dispatch: # Enables manual trigger
 
 jobs:
   push-to-registry:
     runs-on: ubuntu-latest
-    environment: TESTING
+    environment: PRODUCTION
     timeout-minutes: 60
     steps:
       - name: Checkout repository
@@ -20,20 +17,18 @@ jobs:
         run: |
           sudo systemctl start podman.socket
           systemctl status podman.socket
-      - name: pull latest image to get base layers
-        run: |
-          podman pull ghcr.io/${{ github.repository_owner }}/gstaldergeist:latest
-      - name: Podman build and tag
-        run: |
-          podman build -t ghcr.io/${{ github.repository_owner }}/gstaldergeist:{{ github.sha }}
-          -t ghcr.io/${{ github.repository_owner }}/gstaldergeist:nightly  .
       - name: Login to GitHub Container Registry
         run: |
           podman login -u ${{ github.repository_owner }} -p ${{ secrets.GITHUB_TOKEN }} ghcr.io
-      - name: push to registry
+      - name: pull image with sha tag
         run: |
-          podman push ghcr.io/${{ github.repository_owner }}/gstaldergeist::{{ github.sha }}
-          podman push ghcr.io/${{ github.repository_owner }}/gstaldergeist::nightly
+          podman pull ghcr.io/${{ github.repository_owner }}/gstaldergeist:{{ github.sha }}
+      - name: tag image as latest
+        run: |
+          podman tag ghcr.io/${{ github.repository_owner }}/gstaldergeist:{{ github.sha }} ghcr.io/${{ github.repository_owner }}/gstaldergeist:latest
+      - name: Push image as latest
+        run: |
+          podman push ghcr.io/${{ github.repository_owner }}/gstaldergeist:latest
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
@@ -49,14 +44,12 @@ jobs:
         run: |
           mkdir -p ~/.ssh
           ssh-keyscan -H ${{ secrets.ANSIBLE_HOST_IP }} >> ~/.ssh/known_hosts
-
       - name: Generate Ansible Vars File
         run: |
-          CONFIG_PATH=./group_vars/testing.yml
+          CONFIG_PATH=./group_vars/production.yml
           echo "ansible_host: ${{ secrets.ANSIBLE_HOST_IP }}" >> $CONFIG_PATH
           echo "ansible_user: ${{ secrets.ANSIBLE_USER }}" >> $CONFIG_PATH
         working-directory: ./ansible
-
       - name: Generate Env File
         env:
           ALL_SECRETS_JSON: ${{ toJson(secrets) }}
@@ -70,7 +63,6 @@ jobs:
             | "\(.key)=\(.value)"
           ' > "$CONFIG_PATH"
         working-directory: ./ansible
-
       - name: Run Ansible Playbook
-        run: ansible-playbook -i inventory.ini playbook.yml -l testing
+        run: ansible-playbook -i inventory.ini playbook.yml -l production
         working-directory: ./ansible
