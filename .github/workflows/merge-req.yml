@@ -1,0 +1,21 @@
+name: Cargo check on Merge Request
+permissions:
+  packages: write
+  contents: read
+on:
+  pull_request:
+    branches:
+      - main # Triggers only when you push to this branch
+  workflow_dispatch: # Enables manual trigger
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  cargo-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Run cargo check
+        run: cargo check --all-targets --all-features --no-default-features --verbose
