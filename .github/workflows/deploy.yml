@@ -25,9 +25,8 @@ jobs:
           podman pull ghcr.io/${{ github.repository_owner }}/gstaldergeist:latest
       - name: Podman build and tag
         run: |
-          podman build \
-            -t ghcr.io/${{ github.repository_owner }}/gstaldergeist:{{ github.sha }} \
-            -t ghcr.io/${{ github.repository_owner }}/gstaldergeist:nightly  .
+          podman build -t ghcr.io/${{ github.repository_owner }}/gstaldergeist:{{ github.sha }} .
+          podman tag ghcr.io/${{ github.repository_owner }}/gstaldergeist:{{ github.sha }} ghcr.io/${{ github.repository_owner }}/gstaldergeist:nightly
       - name: Login to GitHub Container Registry
         run: |
           podman login -u ${{ github.repository_owner }} -p ${{ secrets.GITHUB_TOKEN }} ghcr.io
