@@ -22,10 +22,10 @@ jobs:
           podman login -u ${{ github.repository_owner }} -p ${{ secrets.GITHUB_TOKEN }} ghcr.io
       - name: pull image with sha tag
         run: |
-          podman pull ghcr.io/${{ github.repository_owner }}/gstaldergeist:{{ github.sha }}
+          podman pull ghcr.io/${{ github.repository_owner }}/gstaldergeist:${{ github.sha }}
       - name: tag image as latest
         run: |
-          podman tag ghcr.io/${{ github.repository_owner }}/gstaldergeist:{{ github.sha }} ghcr.io/${{ github.repository_owner }}/gstaldergeist:latest
+          podman tag ghcr.io/${{ github.repository_owner }}/gstaldergeist:${{ github.sha }} ghcr.io/${{ github.repository_owner }}/gstaldergeist:latest
       - name: Push image as latest
         run: |
           podman push ghcr.io/${{ github.repository_owner }}/gstaldergeist:latest
