@@ -28,8 +28,8 @@ jobs:
           podman build \
           -t ghcr.io/${{ github.repository_owner }}/gstaldergeist:nightly \
           --layers \
-          --cache-from=ghcr.io/${{ github.repository_owner }}/gstaldergeist:nightly \
-          --cache-to=ghcr.io/${{ github.repository_owner }}/gstaldergeist:nightly \
+          --cache-from=ghcr.io/${{ github.repository_owner }}/gstaldergeist \
+          --cache-to=ghcr.io/${{ github.repository_owner }}/gstaldergeist \
           .
       - name: push to registry
         run: |
