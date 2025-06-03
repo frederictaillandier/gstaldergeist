@@ -20,17 +20,17 @@ jobs:
         run: |
           sudo systemctl start podman.socket
           systemctl status podman.socket
-      - name: pull latest image to get base layers
-        run: |
-          podman pull ghcr.io/${{ github.repository_owner }}/gstaldergeist:latest
-      - name: Podman build and tag
-        run: |
-          echo ${{ github.sha }}
-          podman build -t ghcr.io/${{ github.repository_owner }}/gstaldergeist:${{ github.sha }} .
-          podman tag ghcr.io/${{ github.repository_owner }}/gstaldergeist:${{ github.sha }} ghcr.io/${{ github.repository_owner }}/gstaldergeist:nightly
       - name: Login to GitHub Container Registry
         run: |
           podman login -u ${{ github.repository_owner }} -p ${{ secrets.GITHUB_TOKEN }} ghcr.io
+      - name: Podman build and tag
+        run: |
+          podman build \
+          -t ghcr.io/${{ github.repository_owner }}/gstaldergeist:latest \
+          --layers \
+          --cache-from=ghcr.io/${{ github.repository_owner }}/gstaldergeist:latest \
+          --cache-to=ghcr.io/${{ github.repository_owner }}/gstaldergeist:latest \
+          .
       - name: push to registry
         run: |
           podman push ghcr.io/${{ github.repository_owner }}/gstaldergeist:${{ github.sha }}
