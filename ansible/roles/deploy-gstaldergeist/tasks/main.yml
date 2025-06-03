@@ -6,11 +6,11 @@
     mode: "0755"
     owner: "{{ ansible_user_id }}"
     group: "{{ ansible_user_id }}"
-  become: yes
+  become: true
 
 - name: Ensure .env file exists
   copy:
-    dest: "{{ env_file_path }}2"
+    dest: "{{ env_file_path }}"
     owner: "{{ ansible_user_id }}"
     group: "{{ ansible_user_id }}"
     src: ".env"
@@ -22,7 +22,7 @@
   command: "podman pull ghcr.io/frederictaillandier/{{ podman_image_name }}"
   register: image_pull
   changed_when: image_pull.rc == 0
-  ignore_errors: yes
+  ignore_errors: true
 
 - name: Stop existing Podman container if it exists
   shell: "podman container exists {{ podman_container_name }} && podman stop {{ podman_container_name }} && podman rm {{ podman_container_name }} || true"
@@ -46,27 +46,27 @@
     path: "~/.config/systemd/user"
     state: directory
     mode: "0755"
-  become: no
+  become: false
 
 - name: Create systemd service for Podman container
   template:
     src: podman-app.service.j2
     dest: "~/.config/systemd/user/{{ app_name }}-{{ env }}.service"
   register: systemd_service
-  become: no
+  become: false
 
 - name: Reload systemd user daemon
   shell: systemctl --user daemon-reload
   when: systemd_service.changed
-  become: no
+  become: false
 
 - name: Enable and start the service
   shell: systemctl --user enable --now {{ app_name }}-{{ env }}.service
   when: systemd_service.changed
-  become: no
+  become: false
 
 - name: Enable lingering for user
-  become: yes
+  become: true
   command: loginctl enable-linger {{ ansible_user_id }}
   changed_when: false
 
@@ -75,7 +75,7 @@
   register: service_status
   changed_when: false
   failed_when: false
-  become: no
+  become: false
 
 - name: Display service status
   debug:
