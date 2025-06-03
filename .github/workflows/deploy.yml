@@ -26,10 +26,10 @@ jobs:
       - name: Podman build and tag
         run: |
           podman build \
-          -t ghcr.io/${{ github.repository_owner }}/gstaldergeist:latest \
+          -t ghcr.io/${{ github.repository_owner }}/gstaldergeist:nightly \
           --layers \
-          --cache-from=ghcr.io/${{ github.repository_owner }}/gstaldergeist:latest \
-          --cache-to=ghcr.io/${{ github.repository_owner }}/gstaldergeist:latest \
+          --cache-from=ghcr.io/${{ github.repository_owner }}/gstaldergeist \
+          --cache-to=ghcr.io/${{ github.repository_owner }}/gstaldergeist \
           .
       - name: push to registry
         run: |
