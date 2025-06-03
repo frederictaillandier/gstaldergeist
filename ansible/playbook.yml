@@ -1,5 +1,5 @@
 ---
 - name: Deploy Gstaldergeist
-  hosts: testing
+  hosts: all
   roles:
     - deploy-gstaldergeist
