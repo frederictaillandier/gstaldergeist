@@ -6,8 +6,9 @@ use std::collections::HashMap;
 
 pub struct WeRecycleWasteGrabber;
 
+#[async_trait::async_trait]
 impl super::WasteGrabber for WeRecycleWasteGrabber {
-    async fn get_trashes(self, from: NaiveDate, to: NaiveDate) -> Result<HashMap<NaiveDate, Vec<TrashType>>, String> {
+    async fn get_trashes(&self, from: NaiveDate, to: NaiveDate) -> Result<HashMap<NaiveDate, Vec<TrashType>>, String> {
         let extracted_dates = download_pdf().await.map_err(|err| err.to_string())?;
         let mut result = HashMap::new();
         for date in extracted_dates {
