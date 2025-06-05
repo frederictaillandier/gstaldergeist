@@ -33,8 +33,6 @@ export EMAIL_PASSWORD="xxxx xxxx xxxx xxxx"
 export EMAIL_NAME="Gstalder Geist"
 export ADDRESS="Gstalderstreet 1 9999 Gstaldercity"
 export TO_EMAIL="we-recycle@gmail.com"
-export NB_REMINDERS="3"
-export DELTA_REMINDER_SEC="10"
 ```
 
 using these parameters:
@@ -42,7 +40,7 @@ using these parameters:
 **TELEGRAM_CHANNEL_ID** is the [telegram](https://core.telegram.org/bots/api) group chat where the bot writes for all flatmates</br>
 **TELEGRAM_FLATMATES** is the list of your flatmates and **chat_it** fits a chat only targeted for a specific flatmate</br>
 
-run then with 
+run then with
 ```cargo run --release```
 
 ## Production environment
