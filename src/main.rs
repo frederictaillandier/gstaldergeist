@@ -134,16 +134,6 @@ async fn send_scheduled_messages(
         };
 
         let trashes_schedule = data_grabber::get_trashes(&config, today, until_date).await.map_err(|e| e.to_string())?;
-
-        telegram_writer::send_update(
-            &bot,
-            &config,
-            &trashes_schedule,
-            weekly,
-            shared_task.clone(),
-        )
-        .await;
-
         if next_trigger.hour() >= 21 {
             control_human_accomplishment(&config, shared_task.clone(), &bot, &trashes_schedule)
                 .await;
