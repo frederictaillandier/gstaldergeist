@@ -62,7 +62,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     let bot = Bot::new(&app.bot_token);
     let task_state = std::sync::Arc::new(std::sync::Mutex::new(SharedTaskState {
         state: TaskState::None,
-        next_trigger: chrono::Local::now(),
+        next_trigger: compute_next_trigger(),
     }));
     let app_state = dptree::deps![std::sync::Arc::clone(&task_state)];
     let scheduled_task = tokio::spawn(send_scheduled_messages(app, task_state, bot.clone()));
@@ -109,6 +109,18 @@ async fn control_human_accomplishment(
     if shared_task.lock().unwrap().state == TaskState::Pending {
         shame_update(bot, config, schedule).await;
         shared_task.lock().unwrap().state = TaskState::None;
+    }
+}
+
+fn compute_next_trigger(
+) -> chrono::DateTime<chrono::Local> {
+    let now = chrono::Local::now();
+    if now.hour() < 18 {
+        now.with_hour(18).unwrap()
+    } else if now.hour() < 21 {
+        now.with_hour(21).unwrap()
+    } else {
+        (now + chrono::Duration::days(1)).with_hour(18).unwrap()
     }
 }
 
