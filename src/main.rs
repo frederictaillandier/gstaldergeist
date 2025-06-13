@@ -149,12 +149,10 @@ async fn send_scheduled_messages(
         if next_trigger.hour() >= 21 {
             control_human_accomplishment(&config, shared_task.clone(), &bot, &trashes_schedule)
                 .await;
-            next_trigger = next_trigger + chrono::Duration::days(1);
-            next_trigger = next_trigger.with_hour(18).unwrap();
         } else {
             send_order_to_human(&config, shared_task.clone(), &bot, &trashes_schedule).await;
-            next_trigger = next_trigger.with_hour(21).unwrap();
         }
+        next_trigger = compute_next_trigger();
         shared_task.lock().unwrap().next_trigger = next_trigger;
     }
 }
