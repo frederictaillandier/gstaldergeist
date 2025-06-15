@@ -56,8 +56,8 @@ pub fn request_new_bags() {
         ),
     );
     match res {
-        Ok(_) => println!("Email sent successfully"),
-        Err(e) => eprintln!("Error sending email: {}", e),
+        Ok(_) => tracing::info!("Email sent successfully"),
+        Err(e) => tracing::error!("Error sending email: {}", e),
     }
 }
 

@@ -8,8 +8,8 @@ use teloxide::{
 
 async fn send(bot: &Bot, channel: i64, message: &str) {
     match bot.send_message(ChatId(channel), message).await {
-        Ok(_) => println!("Scheduled message sent successfully"),
-        Err(e) => eprintln!("Error sending scheduled message: {}", e),
+        Ok(_) => tracing::info!("Scheduled message sent successfully"),
+        Err(e) => tracing::error!("Error sending scheduled message: {}", e),
     }
 }
 
@@ -98,8 +98,8 @@ async fn daily_update(
                 .reply_markup(keyboard)
                 .await;
             match res {
-                Ok(_) => println!("Scheduled message sent successfully"),
-                Err(e) => eprintln!("Error sending scheduled message: {}", e),
+                Ok(_) => tracing::info!("Scheduled message sent successfully"),
+                Err(e) => tracing::error!("Error sending scheduled message: {}", e),
             }
             shared_task.lock().unwrap().state = super::TaskState::Pending;
         }
