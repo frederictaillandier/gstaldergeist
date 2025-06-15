@@ -1,4 +1,4 @@
-use chrono::{Datelike, TimeZone, Timelike, Weekday};
+use chrono::{Datelike, Timelike, Weekday};
 use std::env;
 use std::error::Error;
 use telegram_writer::{send_update, shame_update};
@@ -8,11 +8,8 @@ mod data_grabber;
 mod email;
 mod telegram_writer;
 mod answer_handler;
+mod error;
 
-use teloxide::{
-    payloads::SendMessageSetters,
-    types::{InlineKeyboardButton, InlineKeyboardMarkup},
-};
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub enum TaskState {
@@ -161,14 +158,8 @@ async fn handle_message(bot: Bot, msg: Message) -> ResponseResult<()> {
     println!("Received message: {:?} from {:?}", msg.text(), msg.chat.id);
     if let Some(text) = msg.text() {
         if text == "ping" {
-            let keyboard = InlineKeyboardMarkup::new(vec![
-                // First row with two buttons
-                vec![InlineKeyboardButton::callback("AAA", "aaa")],
-                vec![InlineKeyboardButton::callback("BBB", "bbb")],
-            ]);
 
             bot.send_message(msg.chat.id, "pong!")
-                .reply_markup(keyboard)
                 .await?;
         }
     }

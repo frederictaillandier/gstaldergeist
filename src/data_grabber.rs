@@ -6,6 +6,7 @@ use core::fmt;
 use async_trait::async_trait;
 use serde::Deserialize;
 use std::collections::HashMap;
+use crate::error::GstaldergeistError;
 
 #[derive(Debug)]
 pub enum TrashType {
@@ -28,7 +29,7 @@ struct ChatInfo {
 
 #[async_trait]
 pub trait WasteGrabber : Send + Sync{
-    async fn get_trashes(&self, from: NaiveDate, to: NaiveDate) -> Result<HashMap<NaiveDate, Vec<TrashType>>, String>;
+    async fn get_trashes(&self, from: NaiveDate, to: NaiveDate) -> Result<HashMap<NaiveDate, Vec<TrashType>>, GstaldergeistError>;
 }
 
 impl fmt::Display for TrashType {
