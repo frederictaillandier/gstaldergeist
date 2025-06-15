@@ -1,6 +1,5 @@
 use chrono::{Datelike, Timelike, Weekday};
 use std::env;
-use std::error::Error;
 use telegram_writer::{send_update, shame_update};
 
 use teloxide::prelude::*;
@@ -55,8 +54,9 @@ fn config() -> Result<Config, error::GstaldergeistError> {
 #[tokio::main]
 async fn main() -> Result<(), error::GstaldergeistError> {
     let app = config()?;
+    tracing::subscriber::set_global_default(tracing_subscriber::fmt::Subscriber::builder().finish()).unwrap();
 
-    println!("App config: {:?}", app.bot_token);
+
     let bot = Bot::new(&app.bot_token);
     let task_state = std::sync::Arc::new(std::sync::Mutex::new(SharedTaskState {
         state: TaskState::None,
@@ -77,7 +77,7 @@ async fn main() -> Result<(), error::GstaldergeistError> {
         .dispatch()
         .await;
     if let Err(e) = scheduled_task.await {
-        eprintln!("Scheduled task failed: {}", e);
+        tracing::error!("Scheduled task failed: {}", e);
     }
     Ok(())
 }
@@ -156,10 +156,9 @@ async fn send_scheduled_messages(
 }
 
 async fn handle_message(bot: Bot, msg: Message) -> ResponseResult<()> {
-    println!("Received message: {:?} from {:?}", msg.text(), msg.chat.id);
+    tracing::info!("Received message: {:?} from {:?}", msg.text(), msg.chat.id);
     if let Some(text) = msg.text() {
         if text == "ping" {
-
             bot.send_message(msg.chat.id, "pong!")
                 .await?;
         }
