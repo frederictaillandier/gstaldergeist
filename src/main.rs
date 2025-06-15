@@ -1,4 +1,4 @@
-use chrono::{Datelike, TimeZone, Timelike, Weekday};
+use chrono::{Datelike, Timelike, Weekday};
 use std::env;
 use std::error::Error;
 use telegram_writer::{send_update, shame_update};
@@ -8,11 +8,8 @@ mod data_grabber;
 mod email;
 mod telegram_writer;
 mod answer_handler;
+mod error;
 
-use teloxide::{
-    payloads::SendMessageSetters,
-    types::{InlineKeyboardButton, InlineKeyboardMarkup},
-};
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub enum TaskState {
@@ -32,7 +29,7 @@ pub struct Config {
     pub bot_token: String,
 }
 
-fn config() -> Config {
+fn config() -> Result<Config, error::GstaldergeistError> {
     let bot_token = env::var("TELEGRAM_BOT_TOKEN").expect("TELEGRAM_BOT_TOKEN not set");
     let channel_id_str = env::var("TELEGRAM_CHANNEL_ID").expect("TELEGRAM_CHANNEL_ID not set");
     let channel_id: i64 = channel_id_str
@@ -48,16 +45,17 @@ fn config() -> Config {
         })
         .collect();
 
-    Config {
+    Ok(Config {
         flatmates,
         global_channel_id: channel_id,
         bot_token,
-    }
+    })
 }
 
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
-    let app = config();
+async fn main() -> Result<(), error::GstaldergeistError> {
+    let app = config()?;
+
     println!("App config: {:?}", app.bot_token);
     let bot = Bot::new(&app.bot_token);
     let task_state = std::sync::Arc::new(std::sync::Mutex::new(SharedTaskState {
@@ -129,7 +127,7 @@ async fn send_scheduled_messages(
     config: Config,
     shared_task: std::sync::Arc<std::sync::Mutex<SharedTaskState>>,
     bot: Bot,
-) -> Result<(), String> {
+) -> Result<(), error::GstaldergeistError> {
     loop {
         let now = chrono::Local::now();
         let mut next_trigger = shared_task.lock().unwrap().next_trigger;
@@ -145,7 +143,7 @@ async fn send_scheduled_messages(
             today + chrono::Duration::days(1)
         };
 
-        let trashes_schedule = data_grabber::get_trashes(&config, today, until_date).await.map_err(|e| e.to_string())?;
+        let trashes_schedule = data_grabber::get_trashes(&config, today, until_date).await?;
         if next_trigger.hour() >= 21 {
             control_human_accomplishment(&config, shared_task.clone(), &bot, &trashes_schedule)
                 .await;
@@ -161,14 +159,8 @@ async fn handle_message(bot: Bot, msg: Message) -> ResponseResult<()> {
     println!("Received message: {:?} from {:?}", msg.text(), msg.chat.id);
     if let Some(text) = msg.text() {
         if text == "ping" {
-            let keyboard = InlineKeyboardMarkup::new(vec![
-                // First row with two buttons
-                vec![InlineKeyboardButton::callback("AAA", "aaa")],
-                vec![InlineKeyboardButton::callback("BBB", "bbb")],
-            ]);
 
             bot.send_message(msg.chat.id, "pong!")
-                .reply_markup(keyboard)
                 .await?;
         }
     }
