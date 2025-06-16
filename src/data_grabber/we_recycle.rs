@@ -1,3 +1,5 @@
+use crate::error::GstaldergeistError;
+
 use super::TrashType;
 use chrono::{self, Datelike, NaiveDate};
 use regex::Regex;
@@ -8,8 +10,12 @@ pub struct WeRecycleWasteGrabber;
 
 #[async_trait::async_trait]
 impl super::WasteGrabber for WeRecycleWasteGrabber {
-    async fn get_trashes(&self, from: NaiveDate, to: NaiveDate) -> Result<HashMap<NaiveDate, Vec<TrashType>>, String> {
-        let extracted_dates = download_pdf().await.map_err(|err| err.to_string())?;
+    async fn get_trashes(
+        &self,
+        from: NaiveDate,
+        to: NaiveDate,
+    ) -> Result<HashMap<NaiveDate, Vec<TrashType>>, GstaldergeistError> {
+        let extracted_dates = download_pdf().await?;
         let mut result = HashMap::new();
         for date in extracted_dates {
             if date > from && date <= to {
@@ -38,7 +44,7 @@ fn regex_caps_to_datetime(caps: &regex::Captures) -> Option<NaiveDate> {
     None
 }
 
-fn extract_dates_from_txt(text: String) -> Result<Vec<NaiveDate>, Box<dyn std::error::Error>> {
+fn extract_dates_from_txt(text: String) -> Result<Vec<NaiveDate>, GstaldergeistError> {
     let mut result = Vec::new();
 
     let date_pattern = r"(\d{1,2}\.\d{1,2}\.)";
@@ -59,7 +65,7 @@ fn extract_dates_from_txt(text: String) -> Result<Vec<NaiveDate>, Box<dyn std::e
     Ok(result)
 }
 
-async fn download_pdf() -> Result<Vec<NaiveDate>, Box<dyn std::error::Error>> {
+async fn download_pdf() -> Result<Vec<NaiveDate>, GstaldergeistError> {
     let url = "https://www.werecycle.ch/en/abholdaten/";
     let client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(5))
@@ -74,7 +80,10 @@ async fn download_pdf() -> Result<Vec<NaiveDate>, Box<dyn std::error::Error>> {
 
     for cap in caps {
         println!("cap {:?}", cap);
-        let pdf_url = cap.get(1).ok_or("pdf url corrupted")?.as_str();
+        let pdf_url = cap
+            .get(1)
+            .ok_or(GstaldergeistError::Other("pdf url corrupted".to_string()))?
+            .as_str();
         println!("pdf_url {:?}", pdf_url);
         let pdf = client.get(pdf_url).send().await?;
         let pdf_bytes = pdf.bytes().await?;
