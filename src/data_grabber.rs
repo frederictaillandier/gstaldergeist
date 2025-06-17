@@ -128,7 +128,7 @@ pub async fn get_trashes(
     config: &super::Config,
     from: NaiveDate,
     to: NaiveDate,
-) -> Result<TrashesSchedule, String> {
+) -> Result<TrashesSchedule, GstaldergeistError> {
     // unfortunately traits do not implement async
     let adliswil_grabber = adliswil::AdliswilWasteGrabber {};
     let we_recycle_grabber = we_recycle::WeRecycleWasteGrabber {};
@@ -140,7 +140,7 @@ pub async fn get_trashes(
 
     let mut dates :HashMap<NaiveDate, Vec<TrashType>> = HashMap::new();
     for grabber in grabbers {
-        for (date, trash) in grabber.get_trashes(from, to).await.map_err(|e| e.to_string())? {
+        for (date, trash) in grabber.get_trashes(from, to).await? {
             dates.entry(date).or_default().extend(trash);
         }
     }
