@@ -1,9 +1,7 @@
 use crate::error::GstaldergeistError;
-
 use super::TrashType;
 use chrono::{self, Datelike, NaiveDate};
 use regex::Regex;
-
 use std::collections::HashMap;
 
 pub struct WeRecycleWasteGrabber;
@@ -72,19 +70,16 @@ async fn download_pdf() -> Result<Vec<NaiveDate>, GstaldergeistError> {
         .build()?;
     let response = client.get(url).send().await?;
     let body = response.text().await?;
-    //println!("{:?}", body);
     let regex = Regex::new(r#"href="([^"]+\d+.pdf)""#)?;
     let caps = regex.captures_iter(&body);
 
     let mut result = Vec::new();
 
     for cap in caps {
-        println!("cap {:?}", cap);
         let pdf_url = cap
             .get(1)
             .ok_or(GstaldergeistError::Other("pdf url corrupted".to_string()))?
             .as_str();
-        println!("pdf_url {:?}", pdf_url);
         let pdf = client.get(pdf_url).send().await?;
         let pdf_bytes = pdf.bytes().await?;
         let pdf_text = pdf_extract::extract_text_from_mem(&pdf_bytes)?;
