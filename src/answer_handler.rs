@@ -171,3 +171,21 @@ pub async fn handle_callback_query(
 
     Ok(())
 }
+
+pub async fn handle_message(bot: Bot, msg: Message) -> ResponseResult<()> {
+    tracing::info!("Received message: {:?} from {:?}", msg.text(), msg.chat.id);
+    if let Some(text) = msg.text() {
+        if text == "ping" {
+            let trashes = crate::database::get_all_trashes().unwrap();
+            let chat_id = msg.chat.id;
+            bot.send_message(chat_id, "pong!")
+            .await?;
+
+            for (date, waste_types) in trashes {
+                bot.send_message(chat_id, format!("{}: {:?}", date, waste_types))
+                    .await?;
+            }
+        }
+    }
+    Ok(())
+}
