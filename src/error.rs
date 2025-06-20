@@ -58,3 +58,8 @@ impl From<pdf_extract::OutputError> for GstaldergeistError {
     }
 }
 
+impl From<rusqlite::Error> for GstaldergeistError {
+    fn from(error: rusqlite::Error) -> Self {
+        GstaldergeistError::Other(error.to_string())
+    }
+}

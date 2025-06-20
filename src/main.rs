@@ -8,7 +8,7 @@ mod email;
 mod telegram_writer;
 mod answer_handler;
 mod error;
-
+mod database;
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub enum TaskState {
@@ -65,7 +65,7 @@ async fn main() -> Result<(), error::GstaldergeistError> {
     let app_state = dptree::deps![std::sync::Arc::clone(&task_state)];
     let scheduled_task = tokio::spawn(send_scheduled_messages(app, task_state, bot.clone()));
 
-    let message_handler = Update::filter_message().endpoint(handle_message);
+    let message_handler = Update::filter_message().endpoint(answer_handler::handle_message);
     let callback_handler = Update::filter_callback_query().endpoint(answer_handler::handle_callback_query);
     let handler = dptree::entry()
         .branch(message_handler)
@@ -144,6 +144,7 @@ async fn send_scheduled_messages(
         };
 
         let trashes_schedule = data_grabber::get_trashes(&config, today, until_date).await?;
+        database::set_trashes(&trashes_schedule.dates)?;
         if next_trigger.hour() >= 21 {
             control_human_accomplishment(&config, shared_task.clone(), &bot, &trashes_schedule)
                 .await;
@@ -153,15 +154,4 @@ async fn send_scheduled_messages(
         next_trigger = compute_next_trigger();
         shared_task.lock().unwrap().next_trigger = next_trigger;
     }
-}
-
-async fn handle_message(bot: Bot, msg: Message) -> ResponseResult<()> {
-    tracing::info!("Received message: {:?} from {:?}", msg.text(), msg.chat.id);
-    if let Some(text) = msg.text() {
-        if text == "ping" {
-            bot.send_message(msg.chat.id, "pong!")
-                .await?;
-        }
-    }
-    Ok(())
 }

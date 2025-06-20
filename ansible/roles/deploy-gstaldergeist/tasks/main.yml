@@ -29,10 +29,24 @@
   register: container_stop
   changed_when: container_stop.rc == 0
 
+- name: Remove existing database
+  shell: "rm -f {{ app_directory }}/.data/gstaldergeist.db"
+  when: image_pull.changed or container_stop.changed
+
+- name: Ensure .data directory exists
+  file:
+    path: "{{ app_directory }}/.data"
+    state: directory
+    mode: "0755"
+    owner: "{{ ansible_user_id }}"
+    group: "{{ ansible_user_id }}"
+  become: true
+
 - name: Run Podman container
   shell: >
     podman run -d
     --name {{ podman_container_name }}
+    --volume {{ app_directory }}/.data:/data
     --restart=always
     --env-file {{ env_file_path }}
     --log-driver json-file --log-opt path={{ app_directory }}/container.log
