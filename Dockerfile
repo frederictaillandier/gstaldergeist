@@ -10,8 +10,8 @@ RUN cargo build --release && \
 COPY src ./src
 RUN cargo build --release
 
-FROM docker.io/library/debian:bookworm-slim
+FROM docker.io/library/alpine:latest
 WORKDIR /app
-RUN apt-get update && apt-get install -y libssl3 ca-certificates
+RUN apk update && apk add --no-cache libssl3 ca-certificates
 COPY --from=builder /usr/src/app/gstaldergeist/target/release/gstaldergeist /app/gstaldergeist
 CMD ["/app/gstaldergeist"]
