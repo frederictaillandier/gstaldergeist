@@ -17,6 +17,34 @@ pub enum TrashType {
     Paper,
 }
 
+// impl TrashType from rusqlite
+impl rusqlite::types::FromSql for TrashType {
+    fn column_result(value: rusqlite::types::ValueRef<'_>) -> rusqlite::types::FromSqlResult<Self> {
+        match value.as_i64()? {
+            0 => Ok(TrashType::WeRecycle),
+            1 => Ok(TrashType::Normal),
+            2 => Ok(TrashType::Bio),
+            3 => Ok(TrashType::Cardboard),
+            4 => Ok(TrashType::Paper),
+            _ => Err(rusqlite::types::FromSqlError::InvalidType),
+        }
+    }
+}
+
+impl rusqlite::types::ToSql for TrashType {
+    fn to_sql(&self) -> rusqlite::Result<rusqlite::types::ToSqlOutput<'_>> {
+        Ok(rusqlite::types::ToSqlOutput::Owned(rusqlite::types::Value::Integer(
+            match self {
+                TrashType::WeRecycle => 0,
+                TrashType::Normal => 1,
+                TrashType::Bio => 2,
+                TrashType::Cardboard => 3,
+                TrashType::Paper => 4,
+            }
+        )))
+    }
+}
+
 #[derive(Deserialize, Debug)]
 struct ChatResult {
     result: ChatInfo,
