@@ -1,6 +1,6 @@
 FROM docker.io/library/rust:slim-bookworm as builder
 WORKDIR /usr/src/app
-RUN apt-get update && apt-get install -y libssl-dev pkg-config && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y libssl-dev libsqlite3-dev pkg-config && rm -rf /var/lib/apt/lists/*
 RUN cargo new --bin gstaldergeist
 WORKDIR /usr/src/app/gstaldergeist
 COPY Cargo.toml Cargo.lock ./
