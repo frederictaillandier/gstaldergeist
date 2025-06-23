@@ -5,8 +5,8 @@ permissions:
 on:
   pull_request:
     branches:
-      - main # Triggers only when you push to this branch
-  workflow_dispatch: # Enables manual trigger
+      - main
+  workflow_dispatch:
 
 env:
   CARGO_TERM_COLOR: always
