@@ -12,6 +12,10 @@ RUN cargo build --release
 
 FROM docker.io/library/debian:bookworm-slim
 WORKDIR /app
-RUN apt-get update && apt-get install -y libssl3 ca-certificates
+RUN apt-get update && apt-get install -y --no-install-recommends  \
+    libssl3 \
+    ca-certificates \
+    libsqlite3-0 \
+    && rm -rf /var/lib/apt/lists/*
 COPY --from=builder /usr/src/app/gstaldergeist/target/release/gstaldergeist /app/gstaldergeist
 CMD ["/app/gstaldergeist"]
