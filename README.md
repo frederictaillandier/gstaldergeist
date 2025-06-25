@@ -2,6 +2,9 @@
   <img src="https://github.com/user-attachments/assets/bcc3cd27-5008-4491-8c53-0b12a35f00c5" alt="Alt text" width="300" height="300">
 </div>
 
+[![CI/CD](https://github.com/frederictaillandier/gstaldergeist/actions/workflows/deploy.yml/badge.svg)](https://github.com/frederictaillandier/gstaldergeist/actions/workflows/deploy.yml)
+[![CI/CD](https://github.com/frederictaillandier/gstaldergeist/actions/workflows/deploy-prod.yml/badge.svg)](https://github.com/frederictaillandier/gstaldergeist/actions/workflows/deploy-prod.yml)
+
 # Gstaldergeist
 
 A Rust-based Telegram chatbot designed to manage household chores in a shared living environment. It automates the assignment of trash disposal duties among flatmates and provides daily reminders. The bot also integrates with local waste management services in Adliswil and We-Recycle.
