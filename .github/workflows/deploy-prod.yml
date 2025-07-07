@@ -3,7 +3,7 @@ permissions:
   packages: write
   contents: read
 on:
-  workflow_dispatch: # Enables manual trigger
+  workflow_dispatch:
 
 jobs:
   push-to-registry:

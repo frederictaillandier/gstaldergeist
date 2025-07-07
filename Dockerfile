@@ -1,4 +1,4 @@
-FROM docker.io/library/rust:slim-bookworm as builder
+FROM docker.io/library/rust:slim-bookworm AS builder
 WORKDIR /usr/src/app
 RUN apt-get update && apt-get install -y libssl-dev libsqlite3-dev pkg-config && rm -rf /var/lib/apt/lists/*
 RUN cargo new --bin gstaldergeist
@@ -12,6 +12,6 @@ RUN cargo build --release
 
 FROM docker.io/library/alpine:latest
 WORKDIR /app
-RUN apk update && apk add --no-cache libssl3 ca-certificates
+RUN apk update && apk add --no-cache libssl3 ca-certificates  libsqlite3-0 && rm -rf /var/lib/apt/lists/*
 COPY --from=builder /usr/src/app/gstaldergeist/target/release/gstaldergeist /app/gstaldergeist
 CMD ["/app/gstaldergeist"]
