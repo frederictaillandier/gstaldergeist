@@ -12,6 +12,6 @@ RUN cargo build --release
 
 FROM docker.io/library/alpine:latest
 WORKDIR /app
-RUN apk update && apk add --no-cache libssl3 ca-certificates  libsqlite3-0 && rm -rf /var/lib/apt/lists/*
+RUN apk update && apk add --no-cache libssl3 ca-certificates sqlite-libs && rm -rf /var/lib/apt/lists/*
 COPY --from=builder /usr/src/app/gstaldergeist/target/release/gstaldergeist /app/gstaldergeist
 CMD ["/app/gstaldergeist"]
