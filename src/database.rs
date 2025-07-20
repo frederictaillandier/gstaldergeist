@@ -9,6 +9,12 @@ const DB_PATH: &str = "/data/gstaldergeist.db";
 pub fn get_all_trashes() -> Result<HashMap<NaiveDate, Vec<TrashType>>, GstaldergeistError> {
     let conn = Connection::open(DB_PATH)?;
 
+    // create table if not exists
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS trashes (date DATE, waste_type INTEGER)",
+        [],
+    )?;
+
     let mut stmt = conn.prepare("SELECT date, waste_type FROM trashes")?;
     let rows = stmt.query_map([], |row| {
         let date: NaiveDate = row.get(0)?; 
