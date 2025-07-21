@@ -17,4 +17,5 @@ tokio = { version = "1.44.2", features = ["full"] }
 thiserror = "2.0.12"
 tracing = "0.1.41"
 tracing-subscriber = "0.3.19"
-rusqlite = { version = "0.36.0", features = ["chrono"] }
+rusqlite = { version = "0.36.0", features = ["chrono", "bundled"] }
+openssl = { version = "0.10.73", features = ["vendored"] }
