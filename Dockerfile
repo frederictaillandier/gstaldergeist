@@ -18,5 +18,6 @@ RUN cargo build --target x86_64-unknown-linux-musl --release
 
 FROM scratch
 WORKDIR /app
+COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 COPY --from=builder /usr/src/app/gstaldergeist/target/x86_64-unknown-linux-musl/release/gstaldergeist /app/gstaldergeist
 CMD ["/app/gstaldergeist"]
