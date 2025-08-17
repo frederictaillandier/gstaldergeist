@@ -180,15 +180,19 @@ pub async fn handle_message(bot: Bot, msg: Message) -> ResponseResult<()> {
             bot.send_message(chat_id, "pong!")
             .await?;
 
-            if let Ok(trashes) = crate::database::get_all_trashes() {
-                for (date, waste_types) in trashes {
-                bot.send_message(chat_id, format!("{}: {:?}", date, waste_types))
-                    .await?;
+            let trashes = crate::database::get_all_trashes();
+            tracing::info!("Trashes: {:?}", trashes);
+
+            match trashes {
+                Ok(trashes) => {
+                    for (date, waste_types) in trashes {
+                        bot.send_message(chat_id, format!("{}: {:?}", date, waste_types))
+                            .await?;
+                    }
                 }
-            }
-            else {
-                bot.send_message(chat_id, "Error getting trashes.")
-                    .await?;
+                Err(e) => {
+                    tracing::error!("Error getting trashes: {:?}", e);
+                }
             }
         }
     }
