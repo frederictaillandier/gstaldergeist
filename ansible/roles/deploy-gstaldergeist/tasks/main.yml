@@ -46,7 +46,7 @@
   shell: >
     podman run -d
     --name {{ podman_container_name }}
-    --volume {{ app_directory }}/.data:/data
+    --mount type=bind,source={{ app_directory }}/.data,destination=/data,z
     --restart=always
     --env-file {{ env_file_path }}
     --log-driver json-file --log-opt path={{ app_directory }}/container.log
