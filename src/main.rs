@@ -122,12 +122,28 @@ fn compute_next_trigger(
     }
 }
 
+async fn collect_trashes_data(config: &Config) -> Result<data_grabber::TrashesSchedule, error::GstaldergeistError> {
+    let now = chrono::Local::now();
+    let today = now.date_naive();
+    let weekly = today.weekday() == chrono::Weekday::Sun;
+    let until_date = if weekly {
+        today + chrono::Duration::days(7)
+    } else {
+        today + chrono::Duration::days(1)
+    };
+    let trashes_schedule = data_grabber::get_trashes(&config, today, until_date).await?;
+    database::set_trashes(&trashes_schedule.dates)?;
+    Ok(trashes_schedule)
+}
+
+
 // Function to send messages on a schedule
 async fn send_scheduled_messages(
     config: Config,
     shared_task: std::sync::Arc<std::sync::Mutex<SharedTaskState>>,
     bot: Bot,
 ) -> Result<(), error::GstaldergeistError> {
+    collect_trashes_data(&config).await?;
     loop {
         let now = chrono::Local::now();
         let mut next_trigger = shared_task.lock().unwrap().next_trigger;
@@ -135,16 +151,7 @@ async fn send_scheduled_messages(
             tokio::time::sleep(tokio::time::Duration::from_secs(60)).await;
             continue;
         }
-        let today = now.date_naive();
-        let weekly = now.weekday() == chrono::Weekday::Sun;
-        let until_date = if weekly {
-            today + chrono::Duration::days(7)
-        } else {
-            today + chrono::Duration::days(1)
-        };
-
-        let trashes_schedule = data_grabber::get_trashes(&config, today, until_date).await?;
-        database::set_trashes(&trashes_schedule.dates)?;
+        let trashes_schedule = collect_trashes_data(&config).await?;
         if next_trigger.hour() >= 21 {
             control_human_accomplishment(&config, shared_task.clone(), &bot, &trashes_schedule)
                 .await;
