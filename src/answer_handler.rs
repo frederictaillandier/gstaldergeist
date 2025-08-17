@@ -172,7 +172,7 @@ pub async fn handle_callback_query(
     Ok(())
 }
 
-pub async fn handle_message(bot: Bot, msg: Message) -> ResponseResult<()> {
+pub async fn handle_message(bot: Bot, msg: Message, task_state: std::sync::Arc<std::sync::Mutex<SharedTaskState>>) -> ResponseResult<()> {
     tracing::info!("Received message: {:?} from {:?}", msg.text(), msg.chat.id);
     if let Some(text) = msg.text() {
         if text == "ping" {
@@ -185,11 +185,15 @@ pub async fn handle_message(bot: Bot, msg: Message) -> ResponseResult<()> {
 
             match trashes {
                 Ok(trashes) => {
+                    let time = chrono::Local::now();
+
+                    bot.send_message(chat_id, format!("now is {}, next trigger is {}", time, task_state.lock().unwrap().next_trigger))
+                    .await?;
                     for (date, waste_types) in trashes {
                         bot.send_message(chat_id, format!("{}: {:?}", date, waste_types))
                             .await?;
                     }
-                }
+                  }
                 Err(e) => {
                     tracing::error!("Error getting trashes: {:?}", e);
                 }
