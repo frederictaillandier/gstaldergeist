@@ -113,12 +113,12 @@ async fn control_human_accomplishment(
 fn compute_next_trigger(
 ) -> chrono::DateTime<chrono::Local> {
     let now = chrono::Local::now();
-    if now.hour() < 18 {
-        now.with_hour(18).unwrap()
-    } else if now.hour() < 21 {
-        now.with_hour(21).unwrap()
+    if now.hour() < 16 {
+        now.with_hour(16).unwrap().with_minute(0).unwrap()
+    } else if now.hour() < 19 {
+        now.with_hour(19).unwrap().with_minute(0).unwrap()
     } else {
-        (now + chrono::Duration::days(1)).with_hour(18).unwrap()
+        (now + chrono::Duration::days(1)).with_hour(16).unwrap().with_minute(0).unwrap()
     }
 }
 
@@ -152,7 +152,7 @@ async fn send_scheduled_messages(
             continue;
         }
         let trashes_schedule = collect_trashes_data(&config).await?;
-        if next_trigger.hour() >= 21 {
+        if next_trigger.hour() >= 19 {
             control_human_accomplishment(&config, shared_task.clone(), &bot, &trashes_schedule)
                 .await;
         } else {
