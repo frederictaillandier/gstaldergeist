@@ -180,15 +180,14 @@ pub async fn handle_message(bot: Bot, msg: Message, task_state: std::sync::Arc<s
             bot.send_message(chat_id, "pong!")
             .await?;
 
+            let time = chrono::Local::now();
+            bot.send_message(chat_id, format!("now is {}, next trigger is {}", time, task_state.lock().unwrap().next_trigger))
+            .await?;
             let trashes = crate::database::get_all_trashes();
             tracing::info!("Trashes: {:?}", trashes);
 
             match trashes {
                 Ok(trashes) => {
-                    let time = chrono::Local::now();
-
-                    bot.send_message(chat_id, format!("now is {}, next trigger is {}", time, task_state.lock().unwrap().next_trigger))
-                    .await?;
                     for (date, waste_types) in trashes {
                         bot.send_message(chat_id, format!("{}: {:?}", date, waste_types))
                             .await?;
