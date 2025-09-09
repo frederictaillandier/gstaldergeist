@@ -12,6 +12,9 @@ pub enum GstaldergeistError {
     #[error("Date parsing error: {0}")]
     DateError(chrono::ParseError),
 
+    #[error("Pdf extract error: {0}")]
+    PdfExtract(String),
+    
     #[error("Other error: {0}")]
     Other(String),
 }
@@ -52,9 +55,9 @@ impl From<regex::Error> for GstaldergeistError {
     }
 }
 
-impl From<pdf_extract::OutputError> for GstaldergeistError {
-    fn from(error: pdf_extract::OutputError) -> Self {
-        GstaldergeistError::Other(error.to_string())
+impl From<lopdf::Error> for GstaldergeistError {
+    fn from(error: lopdf::Error) -> Self {
+        GstaldergeistError::PdfExtract(error.to_string())
     }
 }
 

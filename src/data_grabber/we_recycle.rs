@@ -1,6 +1,7 @@
 use crate::error::GstaldergeistError;
 use super::TrashType;
 use chrono::{self, Datelike, NaiveDate};
+use lopdf::Document;
 use regex::Regex;
 use std::collections::HashMap;
 
@@ -63,6 +64,16 @@ fn extract_dates_from_txt(text: String) -> Result<Vec<NaiveDate>, GstaldergeistE
     Ok(result)
 }
 
+
+fn extract_text_with_lopdf(pdf_bytes: &[u8]) -> Result<String, GstaldergeistError> {
+    let doc = Document::load_mem(pdf_bytes)
+        .map_err(|e| GstaldergeistError::PdfExtract(e.to_string()))?;
+    let pages = doc.get_pages().keys().cloned().collect::<Vec<_>>();
+    let pdf_text = doc.extract_text(&pages)
+        .map_err(|e| GstaldergeistError::PdfExtract(e.to_string()))?;
+    Ok(pdf_text)
+}
+
 async fn download_pdf() -> Result<Vec<NaiveDate>, GstaldergeistError> {
     let url = "https://www.werecycle.ch/en/abholdaten/";
     let client = reqwest::Client::builder()
@@ -82,7 +93,7 @@ async fn download_pdf() -> Result<Vec<NaiveDate>, GstaldergeistError> {
             .as_str();
         let pdf = client.get(pdf_url).send().await?;
         let pdf_bytes = pdf.bytes().await?;
-        let pdf_text = pdf_extract::extract_text_from_mem(&pdf_bytes)?;
+        let pdf_text = extract_text_with_lopdf(&pdf_bytes)?;
         let dates = extract_dates_from_txt(pdf_text)?;
 
         result.extend(dates);
