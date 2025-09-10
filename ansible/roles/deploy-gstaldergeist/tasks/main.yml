@@ -42,19 +42,6 @@
     group: "{{ ansible_user_id }}"
   become: true
 
-- name: Run Podman container
-  shell: >
-    podman run -d
-    --name {{ podman_container_name }}
-    --mount type=bind,source={{ app_directory }}/.data,destination=/data,z
-    --restart=always
-    --env-file {{ env_file_path }}
-    --log-driver json-file --log-opt path={{ app_directory }}/container.log
-    {{ podman_image_name }}
-  when: image_pull.changed or container_stop.changed
-  register: container_run
-  changed_when: container_run.rc == 0
-
 - name: Ensure systemd user directory exists
   file:
     path: "~/.config/systemd/user"
