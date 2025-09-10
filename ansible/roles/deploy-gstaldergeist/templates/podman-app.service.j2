@@ -5,8 +5,8 @@ After=network-online.target
 
 [Service]
 Type=simple
-ExecStartPre=-/usr/bin/podman rm -f {{ podman_container_name }}
-ExecStart=/usr/bin/podman run --name {{ podman_container_name }} --env-file {{ env_file_path }} {{ podman_image_name }}
+ExecStartPre=/usr/bin/podman rm -f {{ podman_container_name }}
+ExecStart=/usr/bin/podman run --name {{ podman_container_name }} --mount type=bind,source={{ app_directory }}/.data,destination=/data,z --env-file {{ env_file_path }} --log-driver json-file --log-opt path={{ app_directory }}/container.log {{ podman_image_name }}
 ExecStop=/usr/bin/podman stop -t 10 {{ podman_container_name }}
 ExecStopPost=/usr/bin/podman rm -f {{ podman_container_name }}
 Restart=always
