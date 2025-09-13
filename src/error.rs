@@ -6,6 +6,7 @@ pub enum GstaldergeistError {
     #[error("Network error: {0}")]
     NetworkError(reqwest::Error),
 
+    #[allow(dead_code)]
     #[error("Configuration error: {0}")]
     ConfigError(String),
 
