@@ -3,10 +3,10 @@ mod we_recycle;
 use chrono::{Datelike, NaiveDate};
 use core::fmt;
 
+use crate::error::GstaldergeistError;
 use async_trait::async_trait;
 use serde::Deserialize;
 use std::collections::HashMap;
-use crate::error::GstaldergeistError;
 
 #[derive(Debug)]
 pub enum TrashType {
@@ -33,15 +33,15 @@ impl rusqlite::types::FromSql for TrashType {
 
 impl rusqlite::types::ToSql for TrashType {
     fn to_sql(&self) -> rusqlite::Result<rusqlite::types::ToSqlOutput<'_>> {
-        Ok(rusqlite::types::ToSqlOutput::Owned(rusqlite::types::Value::Integer(
-            match self {
+        Ok(rusqlite::types::ToSqlOutput::Owned(
+            rusqlite::types::Value::Integer(match self {
                 TrashType::WeRecycle => 0,
                 TrashType::Normal => 1,
                 TrashType::Bio => 2,
                 TrashType::Cardboard => 3,
                 TrashType::Paper => 4,
-            }
-        )))
+            }),
+        ))
     }
 }
 
@@ -56,8 +56,12 @@ struct ChatInfo {
 }
 
 #[async_trait]
-pub trait WasteGrabber : Send + Sync{
-    async fn get_trashes(&self, from: NaiveDate, to: NaiveDate) -> Result<HashMap<NaiveDate, Vec<TrashType>>, GstaldergeistError>;
+pub trait WasteGrabber: Send + Sync {
+    async fn get_trashes(
+        &self,
+        from: NaiveDate,
+        to: NaiveDate,
+    ) -> Result<HashMap<NaiveDate, Vec<TrashType>>, GstaldergeistError>;
 }
 
 impl fmt::Display for TrashType {
@@ -161,12 +165,10 @@ pub async fn get_trashes(
     let adliswil_grabber = adliswil::AdliswilWasteGrabber {};
     let we_recycle_grabber = we_recycle::WeRecycleWasteGrabber {};
 
-    let grabbers: Vec<Box<dyn WasteGrabber>> = vec![
-            Box::new(adliswil_grabber),
-            Box::new(we_recycle_grabber),
-        ];
+    let grabbers: Vec<Box<dyn WasteGrabber>> =
+        vec![Box::new(adliswil_grabber), Box::new(we_recycle_grabber)];
 
-    let mut dates :HashMap<NaiveDate, Vec<TrashType>> = HashMap::new();
+    let mut dates: HashMap<NaiveDate, Vec<TrashType>> = HashMap::new();
     for grabber in grabbers {
         for (date, trash) in grabber.get_trashes(from, to).await? {
             dates.entry(date).or_default().extend(trash);
