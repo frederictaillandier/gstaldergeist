@@ -1,8 +1,8 @@
+use super::TrashType;
 use crate::error::GstaldergeistError;
 use chrono::{DateTime, NaiveDate};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use super::TrashType;
 
 #[derive(Serialize, Deserialize, Debug)]
 struct Event {

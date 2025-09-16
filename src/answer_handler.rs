@@ -172,16 +172,26 @@ pub async fn handle_callback_query(
     Ok(())
 }
 
-pub async fn handle_message(bot: Bot, msg: Message, task_state: std::sync::Arc<std::sync::Mutex<SharedTaskState>>) -> ResponseResult<()> {
+pub async fn handle_message(
+    bot: Bot,
+    msg: Message,
+    task_state: std::sync::Arc<std::sync::Mutex<SharedTaskState>>,
+) -> ResponseResult<()> {
     tracing::info!("Received message: {:?} from {:?}", msg.text(), msg.chat.id);
     if let Some(text) = msg.text() {
         if text == "ping" {
             let chat_id = msg.chat.id;
-            bot.send_message(chat_id, "pong!")
-            .await?;
+            bot.send_message(chat_id, "pong!").await?;
 
             let time = chrono::Local::now();
-            bot.send_message(chat_id, format!("now is {}, next trigger is {}", time, task_state.lock().unwrap().next_trigger))
+            bot.send_message(
+                chat_id,
+                format!(
+                    "now is {}, next trigger is {}",
+                    time,
+                    task_state.lock().unwrap().next_trigger
+                ),
+            )
             .await?;
             let trashes = crate::database::get_all_trashes();
             tracing::info!("Trashes: {:?}", trashes);
@@ -192,7 +202,7 @@ pub async fn handle_message(bot: Bot, msg: Message, task_state: std::sync::Arc<s
                         bot.send_message(chat_id, format!("{}: {:?}", date, waste_types))
                             .await?;
                     }
-                  }
+                }
                 Err(e) => {
                     tracing::error!("Error getting trashes: {:?}", e);
                 }

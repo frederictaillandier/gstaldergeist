@@ -6,6 +6,7 @@ pub enum GstaldergeistError {
     #[error("Network error: {0}")]
     NetworkError(reqwest::Error),
 
+    #[allow(dead_code)]
     #[error("Configuration error: {0}")]
     ConfigError(String),
 
@@ -14,7 +15,7 @@ pub enum GstaldergeistError {
 
     #[error("Pdf extract error: {0}")]
     PdfExtract(String),
-    
+
     #[error("Other error: {0}")]
     Other(String),
 }
@@ -22,7 +23,7 @@ pub enum GstaldergeistError {
 impl From<std::io::Error> for GstaldergeistError {
     fn from(error: std::io::Error) -> Self {
         GstaldergeistError::Other(error.to_string())
-    }   
+    }
 }
 
 impl From<serde_json::Error> for GstaldergeistError {

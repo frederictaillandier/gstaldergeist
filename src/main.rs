@@ -3,12 +3,12 @@ use std::env;
 use telegram_writer::{send_update, shame_update};
 
 use teloxide::prelude::*;
-mod data_grabber;
-mod email;
-mod telegram_writer;
 mod answer_handler;
-mod error;
+mod data_grabber;
 mod database;
+mod email;
+mod error;
+mod telegram_writer;
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub enum TaskState {
@@ -54,8 +54,10 @@ fn config() -> Result<Config, error::GstaldergeistError> {
 #[tokio::main]
 async fn main() -> Result<(), error::GstaldergeistError> {
     let app = config()?;
-    tracing::subscriber::set_global_default(tracing_subscriber::fmt::Subscriber::builder().finish()).unwrap();
-
+    tracing::subscriber::set_global_default(
+        tracing_subscriber::fmt::Subscriber::builder().finish(),
+    )
+    .unwrap();
 
     let bot = Bot::new(&app.bot_token);
     let task_state = std::sync::Arc::new(std::sync::Mutex::new(SharedTaskState {
@@ -66,7 +68,8 @@ async fn main() -> Result<(), error::GstaldergeistError> {
     let scheduled_task = tokio::spawn(send_scheduled_messages(app, task_state, bot.clone()));
 
     let message_handler = Update::filter_message().endpoint(answer_handler::handle_message);
-    let callback_handler = Update::filter_callback_query().endpoint(answer_handler::handle_callback_query);
+    let callback_handler =
+        Update::filter_callback_query().endpoint(answer_handler::handle_callback_query);
     let handler = dptree::entry()
         .branch(message_handler)
         .branch(callback_handler);
@@ -110,19 +113,24 @@ async fn control_human_accomplishment(
     }
 }
 
-fn compute_next_trigger(
-) -> chrono::DateTime<chrono::Local> {
+fn compute_next_trigger() -> chrono::DateTime<chrono::Local> {
     let now = chrono::Local::now();
     if now.hour() < 16 {
         now.with_hour(16).unwrap().with_minute(0).unwrap()
     } else if now.hour() < 19 {
         now.with_hour(19).unwrap().with_minute(0).unwrap()
     } else {
-        (now + chrono::Duration::days(1)).with_hour(16).unwrap().with_minute(0).unwrap()
+        (now + chrono::Duration::days(1))
+            .with_hour(16)
+            .unwrap()
+            .with_minute(0)
+            .unwrap()
     }
 }
 
-async fn collect_trashes_data(config: &Config) -> Result<data_grabber::TrashesSchedule, error::GstaldergeistError> {
+async fn collect_trashes_data(
+    config: &Config,
+) -> Result<data_grabber::TrashesSchedule, error::GstaldergeistError> {
     let now = chrono::Local::now();
     let today = now.date_naive();
     let weekly = today.weekday() == chrono::Weekday::Sun;
@@ -135,7 +143,6 @@ async fn collect_trashes_data(config: &Config) -> Result<data_grabber::TrashesSc
     database::set_trashes(&trashes_schedule.dates)?;
     Ok(trashes_schedule)
 }
-
 
 // Function to send messages on a schedule
 async fn send_scheduled_messages(
