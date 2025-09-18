@@ -75,8 +75,8 @@ impl fmt::Display for TrashType {
 #[derive(Debug)]
 pub struct TrashesSchedule {
     pub dates: HashMap<NaiveDate, Vec<TrashType>>,
-    pub master_name: String,
-    pub master_id: i64,
+    pub _master_name: String,
+    pub _master_id: i64,
     pub tomorrow_master_name: String,
     pub tomorrow_master_id: i64,
 }
@@ -175,8 +175,8 @@ pub async fn get_trashes(
 
     Ok(TrashesSchedule {
         dates,
-        master_name: grab_today_food_master_name(config).await,
-        master_id: today_food_master_id(config).await,
+        _master_name: grab_today_food_master_name(config).await,
+        _master_id: today_food_master_id(config).await,
         tomorrow_master_name: grab_tomorrow_food_master_name(config).await,
         tomorrow_master_id: tomorrow_food_master_id(config).await,
     })

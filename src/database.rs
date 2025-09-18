@@ -29,6 +29,7 @@ pub fn get_all_trashes() -> Result<HashMap<NaiveDate, Vec<TrashType>>, Gstalderg
     Ok(trashes)
 }
 
+#[allow(dead_code)]
 pub fn get_trashes(from: NaiveDate, to: NaiveDate) -> Result<HashMap<NaiveDate, Vec<TrashType>>, GstaldergeistError> {
     let conn = Connection::open(DB_PATH)?;
 
