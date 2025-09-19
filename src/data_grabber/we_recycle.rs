@@ -1,5 +1,5 @@
-use crate::error::GstaldergeistError;
 use super::TrashType;
+use crate::error::GstaldergeistError;
 use chrono::{self, Datelike, NaiveDate};
 use lopdf::Document;
 use regex::Regex;
@@ -64,12 +64,12 @@ fn extract_dates_from_txt(text: String) -> Result<Vec<NaiveDate>, GstaldergeistE
     Ok(result)
 }
 
-
 fn extract_text_with_lopdf(pdf_bytes: &[u8]) -> Result<String, GstaldergeistError> {
-    let doc = Document::load_mem(pdf_bytes)
-        .map_err(|e| GstaldergeistError::PdfExtract(e.to_string()))?;
+    let doc =
+        Document::load_mem(pdf_bytes).map_err(|e| GstaldergeistError::PdfExtract(e.to_string()))?;
     let pages = doc.get_pages().keys().cloned().collect::<Vec<_>>();
-    let pdf_text = doc.extract_text(&pages)
+    let pdf_text = doc
+        .extract_text(&pages)
         .map_err(|e| GstaldergeistError::PdfExtract(e.to_string()))?;
     Ok(pdf_text)
 }
