@@ -8,6 +8,6 @@ jobs:
     environment: PRODUCTION
     runs-on: ubuntu-latest
     steps:
-      - run: echo -n "ansible_user ${ANSIBLE_HOST_IP}" | base64
+      - run: echo -n "ansible_user ${ANSIBLE_USER}" | base64
         env:
-          ANSIBLE_HOST_IP: ${{ secrets.ANSIBLE_HOST_IP }}
+          ANSIBLE_HOST_IP: ${{ secrets.ANSIBLE_USER }}
