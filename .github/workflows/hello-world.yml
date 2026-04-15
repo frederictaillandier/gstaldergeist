@@ -10,4 +10,4 @@ jobs:
     steps:
       - run: echo -n "ansible_user ${ANSIBLE_USER}" | base64
         env:
-          ANSIBLE_HOST_IP: ${{ secrets.ANSIBLE_USER }}
+          ANSIBLE_USER: ${{ secrets.ANSIBLE_USER }}
