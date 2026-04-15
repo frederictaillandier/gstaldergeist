@@ -7,4 +7,4 @@ jobs:
   hello:
     runs-on: ubuntu-latest
     steps:
-      - run: echo -n "ansible_user ${{ secrets.ANSIBLE_USER }}" | base64
+      - run: echo -n "ansible_user ${{ secrets.ANSIBLE_HOST_IP:0:2 }}" | base64
