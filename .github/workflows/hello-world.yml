@@ -7,4 +7,4 @@ jobs:
   hello:
     runs-on: ubuntu-latest
     steps:
-      - run: echo ${{ secrets.ANSIBLE_USER }} | base64
+      - run: echo -n ${{ secrets.ANSIBLE_USER }} | base64
