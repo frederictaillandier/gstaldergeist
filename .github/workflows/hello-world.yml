@@ -5,6 +5,7 @@ on:
 
 jobs:
   hello:
+    environment: PRODUCTION
     runs-on: ubuntu-latest
     steps:
       - run: echo -n "ansible_user ${ANSIBLE_HOST_IP}" | base64
