@@ -1,10 +1,19 @@
-use super::data_grabber::TrashesSchedule;
+use super::data_grabber::{TrashType, TrashesSchedule};
 use chrono::Datelike;
 use teloxide::prelude::*;
 use teloxide::{
     payloads::SendMessageSetters,
     types::{InlineKeyboardButton, InlineKeyboardMarkup},
 };
+
+/// Formats a list of trash types into a single string, each entry prefixed by a
+/// space (e.g. ` Normal Bio`). The leading space is intentional: callers embed
+/// the result directly into sentences such as `the{} trashes out`.
+fn format_trashes(trashes: &[TrashType]) -> String {
+    trashes
+        .iter()
+        .fold(String::new(), |acc, trash| format!("{} {}", acc, trash))
+}
 
 async fn send(bot: &Bot, channel: i64, message: &str) {
     match bot.send_message(ChatId(channel), message).await {
@@ -26,9 +35,7 @@ async fn weekly_update(bot: &Bot, config: &super::Config, schedule: &TrashesSche
         match trashes {
             None => continue,
             Some(trashes) => {
-                let trashes_str = trashes
-                    .iter()
-                    .fold(String::new(), |acc, trash| format!("{} {}", acc, trash));
+                let trashes_str = format_trashes(trashes);
                 let day_update = format!("{} on {},\n", trashes_str, date.weekday());
                 master_update_txt.push_str(&day_update);
             }
@@ -76,9 +83,7 @@ async fn daily_update(
     let trashes = schedule.dates.get(&tomorrow);
     match trashes {
         Some(trashes) => {
-            let trashes_str = trashes
-                .iter()
-                .fold(String::new(), |acc, trash| format!("{} {}", acc, trash));
+            let trashes_str = format_trashes(trashes);
             let daily_update_txt = format!(
                 "Hello {} !\nDon't forget the{} trashes out before tomorrow morning! \n\
                 If you don't answer this message before 9pm,\n\
@@ -136,14 +141,35 @@ pub async fn shame_update(bot: &Bot, config: &super::Config, schedule: &TrashesS
     let trashes = schedule.dates.get(&tomorrow);
 
     if let Some(trashes) = trashes {
-        let trashes_str = trashes
-            .iter()
-            .fold(String::new(), |acc, trash| format!("{} {}", acc, trash));
+        let trashes_str = format_trashes(trashes);
 
         let shame_update_txt = format!(
             "Unfortunately {} is not able to fulfill his role as Food master today...Could someone put the {} trashes out before tomorrow morning? Have a nice evening!",
             schedule.tomorrow_master_name, trashes_str
         );
         send(bot, config.global_channel_id, &shame_update_txt).await;
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn format_trashes_empty_is_blank() {
+        assert_eq!(format_trashes(&[]), "");
+    }
+
+    #[test]
+    fn format_trashes_single_has_leading_space() {
+        assert_eq!(format_trashes(&[TrashType::Normal]), " Normal");
+    }
+
+    #[test]
+    fn format_trashes_joins_with_spaces() {
+        assert_eq!(
+            format_trashes(&[TrashType::Normal, TrashType::Bio, TrashType::WeRecycle]),
+            " Normal Bio WeRecycle"
+        );
     }
 }
