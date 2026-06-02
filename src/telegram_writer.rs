@@ -41,7 +41,7 @@ async fn weekly_update(bot: &Bot, config: &super::Config, schedule: &TrashesSche
             "new_bags",
         )],
         vec![InlineKeyboardButton::callback(
-            "No. We have enought bags.",
+            "No. We have enough bags.",
             "enough_bags",
         )],
     ]);
