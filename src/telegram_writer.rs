@@ -80,7 +80,7 @@ async fn daily_update(
                 .iter()
                 .fold(String::new(), |acc, trash| format!("{} {}", acc, trash));
             let daily_update_txt = format!(
-                "Hello {} !\nDon't forget the{} trashes out before tomorrow morning! \n\
+                "Hello {} !\nDon't forget to put the{} trashes out before tomorrow morning! \n\
                 If you don't answer this message before 9pm,\n\
                 a reminder will be sent to all the flatmates.\n\
                 ",
