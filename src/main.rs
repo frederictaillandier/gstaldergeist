@@ -150,7 +150,9 @@ async fn send_scheduled_messages(
     shared_task: std::sync::Arc<std::sync::Mutex<SharedTaskState>>,
     bot: Bot,
 ) -> Result<(), error::GstaldergeistError> {
-    collect_trashes_data(&config).await?;
+    if let Err(e) = collect_trashes_data(&config).await {
+        tracing::error!("Initial trash data collection failed: {}", e);
+    }
     loop {
         let now = chrono::Local::now();
         let mut next_trigger = shared_task.lock().unwrap().next_trigger;
@@ -158,7 +160,18 @@ async fn send_scheduled_messages(
             tokio::time::sleep(tokio::time::Duration::from_secs(60)).await;
             continue;
         }
-        let trashes_schedule = collect_trashes_data(&config).await?;
+        // A transient failure (e.g. We-Recycle/Adliswil unreachable, a timeout,
+        // or an unparseable PDF) must not kill the scheduler: that would silently
+        // stop all future reminders while the bot keeps running. Log it, wait a
+        // minute, and retry without advancing the trigger.
+        let trashes_schedule = match collect_trashes_data(&config).await {
+            Ok(schedule) => schedule,
+            Err(e) => {
+                tracing::error!("Failed to collect trashes data: {}; retrying shortly", e);
+                tokio::time::sleep(tokio::time::Duration::from_secs(60)).await;
+                continue;
+            }
+        };
         if next_trigger.hour() >= 19 {
             control_human_accomplishment(&config, shared_task.clone(), &bot, &trashes_schedule)
                 .await;
