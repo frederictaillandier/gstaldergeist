@@ -91,6 +91,18 @@ async fn tomorrow_food_master_id(config: &super::Config) -> i64 {
     chat_id
 }
 
+/// Number of leading characters in a flatmate's Telegram chat title that make
+/// up a fixed label; the food master's display name is whatever follows it.
+const FOOD_MASTER_TITLE_PREFIX_LEN: usize = 17;
+
+/// Extracts the food master's display name from their Telegram chat title by
+/// dropping the fixed prefix. Unlike `String::split_off`, this never panics on
+/// short titles or multi-byte characters: a title shorter than the prefix
+/// simply yields an empty name.
+fn food_master_name_from_title(title: &str) -> String {
+    title.chars().skip(FOOD_MASTER_TITLE_PREFIX_LEN).collect()
+}
+
 pub async fn grab_tomorrow_food_master_name(config: &super::Config) -> String {
     let tomorrow = chrono::Local::now().naive_local().date() + chrono::Duration::days(1);
     let client = reqwest::Client::new();
@@ -104,18 +116,12 @@ pub async fn grab_tomorrow_food_master_name(config: &super::Config) -> String {
         bot_token, chat_id
     );
 
-    let response = client
-        .get(url)
-        .send()
-        .await
-        .unwrap()
-        .json::<ChatResult>()
-        .await;
+    let response = match client.get(url).send().await {
+        Ok(response) => response.json::<ChatResult>().await,
+        Err(_) => return "Error".to_string(),
+    };
     match response {
-        Ok(response) => {
-            let mut chat_info = response.result;
-            chat_info.title.split_off(17)
-        }
+        Ok(response) => food_master_name_from_title(&response.result.title),
         Err(_) => "Error".to_string(),
     }
 }
@@ -144,4 +150,36 @@ pub async fn get_trashes(
         tomorrow_master_name: grab_tomorrow_food_master_name(config).await,
         tomorrow_master_id: tomorrow_food_master_id(config).await,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::food_master_name_from_title;
+
+    #[test]
+    fn drops_the_fixed_prefix() {
+        // 17-character prefix followed by the actual name.
+        assert_eq!(food_master_name_from_title("Gstaldergeist || Alice"), "Alice");
+    }
+
+    #[test]
+    fn short_title_yields_empty_name_instead_of_panicking() {
+        assert_eq!(food_master_name_from_title("too short"), "");
+        assert_eq!(food_master_name_from_title(""), "");
+    }
+
+    #[test]
+    fn prefix_length_boundary_yields_empty_name() {
+        // Exactly the prefix length: nothing remains after dropping it.
+        assert_eq!(food_master_name_from_title("17_characters_xyz"), "");
+    }
+
+    #[test]
+    fn counts_characters_not_bytes_for_multibyte_names() {
+        // A multi-byte character right after the prefix must not be split mid-byte.
+        assert_eq!(
+            food_master_name_from_title("Gstaldergeist || Élodie"),
+            "Élodie"
+        );
+    }
 }
