@@ -104,13 +104,15 @@ async fn confirm_request_bags_handler(
     };
     let chat_id = message.chat().id;
 
-    bot.edit_message_text(
-        chat_id,
-        message.id(),
-        "Thank you! I sent a request to We-Recycle.",
-    )
-    .await?;
-    email::request_new_bags();
+    let reply = match email::request_new_bags() {
+        Ok(()) => "Thank you! I sent a request to We-Recycle.",
+        Err(e) => {
+            tracing::error!("Failed to send bag request email: {}", e);
+            "Sorry, I couldn't send the request to We-Recycle. Please try again later."
+        }
+    };
+
+    bot.edit_message_text(chat_id, message.id(), reply).await?;
     Ok(())
 }
 
