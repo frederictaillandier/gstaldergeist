@@ -1,4 +1,4 @@
-use chrono::{Datelike, Timelike, Weekday};
+use chrono::{Datelike, TimeZone, Timelike, Weekday};
 use std::env;
 use telegram_writer::{send_update, shame_update};
 
@@ -141,14 +141,45 @@ fn at_hour(
     dt: chrono::DateTime<chrono::Local>,
     hour: u32,
 ) -> chrono::DateTime<chrono::Local> {
-    dt.with_hour(hour)
-        .unwrap()
-        .with_minute(0)
-        .unwrap()
-        .with_second(0)
-        .unwrap()
-        .with_nanosecond(0)
-        .unwrap()
+    dt.date_naive()
+        .and_hms_opt(hour, 0, 0)
+        .and_then(|naive| dt.timezone().from_local_datetime(&naive).single())
+        .expect("16:00 and 19:00 are always valid, unambiguous local times")
+}
+
+const MAX_COLLECT_ATTEMPTS: u32 = 5;
+const INITIAL_BACKOFF_SECS: u64 = 60;
+const MAX_BACKOFF_SECS: u64 = 900;
+
+async fn collect_trashes_data_with_retries(
+    config: &Config,
+) -> Result<data_grabber::TrashesSchedule, error::GstaldergeistError> {
+    let mut backoff = INITIAL_BACKOFF_SECS;
+    for attempt in 1..=MAX_COLLECT_ATTEMPTS {
+        match collect_trashes_data(config).await {
+            Ok(schedule) => return Ok(schedule),
+            Err(e) => {
+                if attempt == MAX_COLLECT_ATTEMPTS {
+                    tracing::error!(
+                        "Failed to collect trashes data after {} attempts: {}",
+                        MAX_COLLECT_ATTEMPTS,
+                        e
+                    );
+                    return Err(e);
+                }
+                tracing::warn!(
+                    "Failed to collect trashes data (attempt {}/{}): {}; retrying in {}s",
+                    attempt,
+                    MAX_COLLECT_ATTEMPTS,
+                    e,
+                    backoff
+                );
+                tokio::time::sleep(tokio::time::Duration::from_secs(backoff)).await;
+                backoff = (backoff * 2).min(MAX_BACKOFF_SECS);
+            }
+        }
+    }
+    unreachable!("the final attempt returns from the loop");
 }
 
 async fn collect_trashes_data(
@@ -173,7 +204,9 @@ async fn send_scheduled_messages(
     shared_task: std::sync::Arc<std::sync::Mutex<SharedTaskState>>,
     bot: Bot,
 ) -> Result<(), error::GstaldergeistError> {
-    collect_trashes_data(&config).await?;
+    if let Err(e) = collect_trashes_data(&config).await {
+        tracing::error!("Initial trash data collection failed: {}", e);
+    }
     loop {
         let now = chrono::Local::now();
         let mut next_trigger = shared_task.lock().unwrap().next_trigger;
@@ -181,7 +214,26 @@ async fn send_scheduled_messages(
             tokio::time::sleep(tokio::time::Duration::from_secs(60)).await;
             continue;
         }
-        let trashes_schedule = collect_trashes_data(&config).await?;
+        // A failed collection must not kill the scheduler, or all future
+        // reminders silently stop while the bot keeps running.
+        let trashes_schedule = match collect_trashes_data_with_retries(&config).await {
+            Ok(schedule) => schedule,
+            Err(e) => {
+                telegram_writer::notify_group(
+                    &bot,
+                    &config,
+                    &format!(
+                        "⚠️ I couldn't fetch the trash schedule after {} attempts ({}). \
+                         Please check the bins yourselves today.",
+                        MAX_COLLECT_ATTEMPTS, e
+                    ),
+                )
+                .await;
+                next_trigger = compute_next_trigger();
+                shared_task.lock().unwrap().next_trigger = next_trigger;
+                continue;
+            }
+        };
         if next_trigger.hour() >= 19 {
             control_human_accomplishment(&config, shared_task.clone(), &bot, &trashes_schedule)
                 .await;

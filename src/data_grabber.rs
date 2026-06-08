@@ -83,21 +83,22 @@ pub struct TrashesSchedule {
     pub tomorrow_master_id: i64,
 }
 
-async fn tomorrow_food_master_id(config: &super::Config) -> i64 {
-    let tomorrow = chrono::Local::now().naive_local().date() + chrono::Duration::days(1);
+/// Selects the flatmate on trash duty for `date`. Duty rotates by one slot per
+/// ISO week, wrapping around the list of flatmates.
+fn food_master_id(flatmates: &[i64], date: NaiveDate) -> i64 {
+    flatmates[(1 + date.iso_week().week0() as usize) % flatmates.len()]
+}
 
-    let chat_id =
-        config.flatmates[(1 + tomorrow.iso_week().week0() as usize) % config.flatmates.len()];
-    chat_id
+fn tomorrow_food_master_id(config: &super::Config) -> i64 {
+    let tomorrow = chrono::Local::now().naive_local().date() + chrono::Duration::days(1);
+    food_master_id(&config.flatmates, tomorrow)
 }
 
 pub async fn grab_tomorrow_food_master_name(config: &super::Config) -> String {
-    let tomorrow = chrono::Local::now().naive_local().date() + chrono::Duration::days(1);
     let client = reqwest::Client::new();
 
     let bot_token = &config.bot_token;
-    let chat_id =
-        &config.flatmates[(1 + tomorrow.iso_week().week0() as usize) % config.flatmates.len()];
+    let chat_id = tomorrow_food_master_id(config);
 
     let url = format!(
         "https://api.telegram.org/bot{}/getChat?chat_id={}",
@@ -142,6 +143,55 @@ pub async fn get_trashes(
     Ok(TrashesSchedule {
         dates,
         tomorrow_master_name: grab_tomorrow_food_master_name(config).await,
-        tomorrow_master_id: tomorrow_food_master_id(config).await,
+        tomorrow_master_id: tomorrow_food_master_id(config),
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::food_master_id;
+    use chrono::NaiveDate;
+
+    fn date(y: i32, m: u32, d: u32) -> NaiveDate {
+        NaiveDate::from_ymd_opt(y, m, d).unwrap()
+    }
+
+    #[test]
+    fn picks_expected_flatmate_for_known_weeks() {
+        let flatmates = [10, 20, 30];
+        // 2024-01-01 (Mon) is ISO week 1 -> week0 == 0 -> index (1 + 0) % 3 == 1.
+        assert_eq!(food_master_id(&flatmates, date(2024, 1, 1)), 20);
+        // 2024-01-08 (Mon) is ISO week 2 -> index (1 + 1) % 3 == 2.
+        assert_eq!(food_master_id(&flatmates, date(2024, 1, 8)), 30);
+        // 2024-01-15 (Mon) is ISO week 3 -> index (1 + 2) % 3 == 0, wrapping around.
+        assert_eq!(food_master_id(&flatmates, date(2024, 1, 15)), 10);
+    }
+
+    #[test]
+    fn duty_advances_by_one_slot_each_week() {
+        let flatmates = [10, 20, 30];
+        let this_week = food_master_id(&flatmates, date(2024, 1, 1));
+        let next_week = food_master_id(&flatmates, date(2024, 1, 8));
+
+        let this_idx = flatmates.iter().position(|&id| id == this_week).unwrap();
+        let next_idx = flatmates.iter().position(|&id| id == next_week).unwrap();
+        assert_eq!(next_idx, (this_idx + 1) % flatmates.len());
+    }
+
+    #[test]
+    fn same_iso_week_picks_same_flatmate() {
+        let flatmates = [10, 20, 30];
+        // Both dates fall in the same ISO week (Mon 2024-01-01 .. Sun 2024-01-07).
+        assert_eq!(
+            food_master_id(&flatmates, date(2024, 1, 1)),
+            food_master_id(&flatmates, date(2024, 1, 7))
+        );
+    }
+
+    #[test]
+    fn single_flatmate_is_always_selected() {
+        let flatmates = [42];
+        assert_eq!(food_master_id(&flatmates, date(2024, 1, 1)), 42);
+        assert_eq!(food_master_id(&flatmates, date(2024, 6, 30)), 42);
+    }
 }
