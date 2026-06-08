@@ -1,4 +1,4 @@
-use chrono::{Datelike, Timelike, Weekday};
+use chrono::{Datelike, TimeZone, Timelike, Weekday};
 use std::env;
 use telegram_writer::{send_update, shame_update};
 
@@ -127,18 +127,32 @@ async fn control_human_accomplishment(
 }
 
 fn compute_next_trigger() -> chrono::DateTime<chrono::Local> {
-    let now = chrono::Local::now();
+    next_trigger_after(chrono::Local::now())
+}
+
+/// Next trigger relative to `now`: today at 16:00, today at 19:00, or 16:00
+/// tomorrow.
+fn next_trigger_after(
+    now: chrono::DateTime<chrono::Local>,
+) -> chrono::DateTime<chrono::Local> {
     if now.hour() < 16 {
-        now.with_hour(16).unwrap().with_minute(0).unwrap()
+        at_hour(now, 16)
     } else if now.hour() < 19 {
-        now.with_hour(19).unwrap().with_minute(0).unwrap()
+        at_hour(now, 19)
     } else {
-        (now + chrono::Duration::days(1))
-            .with_hour(16)
-            .unwrap()
-            .with_minute(0)
-            .unwrap()
+        at_hour(now + chrono::Duration::days(1), 16)
     }
+}
+
+/// `dt` at the given whole hour, with minutes and below zeroed.
+fn at_hour(
+    dt: chrono::DateTime<chrono::Local>,
+    hour: u32,
+) -> chrono::DateTime<chrono::Local> {
+    dt.date_naive()
+        .and_hms_opt(hour, 0, 0)
+        .and_then(|naive| dt.timezone().from_local_datetime(&naive).single())
+        .expect("16:00 and 19:00 are always valid, unambiguous local times")
 }
 
 const MAX_COLLECT_ATTEMPTS: u32 = 5;
@@ -242,6 +256,62 @@ async fn send_scheduled_messages(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use chrono::TimeZone;
+
+    fn local(year: i32, month: u32, day: u32, hour: u32, min: u32, sec: u32) -> chrono::DateTime<chrono::Local> {
+        chrono::Local
+            .with_ymd_and_hms(year, month, day, hour, min, sec)
+            .single()
+            .expect("unambiguous local time")
+    }
+
+    #[test]
+    fn before_first_trigger_schedules_today_at_16() {
+        let now = local(2026, 6, 7, 9, 30, 12);
+        assert_eq!(next_trigger_after(now), local(2026, 6, 7, 16, 0, 0));
+    }
+
+    #[test]
+    fn between_triggers_schedules_today_at_19() {
+        let now = local(2026, 6, 7, 16, 30, 45);
+        assert_eq!(next_trigger_after(now), local(2026, 6, 7, 19, 0, 0));
+    }
+
+    #[test]
+    fn after_last_trigger_rolls_over_to_next_day_at_16() {
+        let now = local(2026, 6, 7, 19, 5, 0);
+        assert_eq!(next_trigger_after(now), local(2026, 6, 8, 16, 0, 0));
+    }
+
+    #[test]
+    fn at_16_exactly_schedules_19_same_day() {
+        let now = local(2026, 6, 7, 16, 0, 0);
+        assert_eq!(next_trigger_after(now), local(2026, 6, 7, 19, 0, 0));
+    }
+
+    #[test]
+    fn at_19_exactly_rolls_over_to_next_day() {
+        let now = local(2026, 6, 7, 19, 0, 0);
+        assert_eq!(next_trigger_after(now), local(2026, 6, 8, 16, 0, 0));
+    }
+
+    #[test]
+    fn trigger_zeroes_minutes_seconds_and_subseconds() {
+        let now = local(2026, 6, 7, 15, 59, 59)
+            .with_nanosecond(987_654_321)
+            .unwrap();
+        let next = next_trigger_after(now);
+        assert_eq!(next.minute(), 0);
+        assert_eq!(next.second(), 0);
+        assert_eq!(next.nanosecond(), 0);
+        assert_eq!(next, local(2026, 6, 7, 16, 0, 0));
+    }
+
+    #[test]
+    fn rollover_keeps_month_and_year_boundaries() {
+        let now = local(2026, 12, 31, 20, 0, 0);
+        assert_eq!(next_trigger_after(now), local(2027, 1, 1, 16, 0, 0));
+    }
 
     #[test]
     fn parse_flatmates_single_value() {
