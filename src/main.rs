@@ -28,21 +28,34 @@ pub struct Config {
     pub bot_token: String,
 }
 
-fn config() -> Result<Config, error::GstaldergeistError> {
-    let bot_token = env::var("TELEGRAM_BOT_TOKEN").expect("TELEGRAM_BOT_TOKEN not set");
-    let channel_id_str = env::var("TELEGRAM_CHANNEL_ID").expect("TELEGRAM_CHANNEL_ID not set");
-    let channel_id: i64 = channel_id_str
-        .parse()
-        .expect("TELEGRAM_CHANNEL_ID must be a number");
-    let flatmates: String = env::var("TELEGRAM_FLATMATES").expect("TELEGRAM_FLATMATES not set");
-    let flatmates: Vec<i64> = flatmates
-        .split(',')
+fn required_env(name: &str) -> Result<String, error::GstaldergeistError> {
+    env::var(name)
+        .map_err(|_| error::GstaldergeistError::ConfigError(format!("{} not set", name)))
+}
+
+/// Parse a comma-separated list of Telegram chat ids, e.g. "123, 456, 789".
+fn parse_flatmates(raw: &str) -> Result<Vec<i64>, error::GstaldergeistError> {
+    raw.split(',')
         .map(|s| {
-            s.trim().parse().expect(
-                "TELEGRAM_FLATMATES must be a comma-separated list of numbers like 123,456,789",
-            )
+            let trimmed = s.trim();
+            trimmed.parse::<i64>().map_err(|_| {
+                error::GstaldergeistError::ConfigError(format!(
+                    "TELEGRAM_FLATMATES must be a comma-separated list of numbers like \
+                     123,456,789, got '{}'",
+                    trimmed
+                ))
+            })
         })
-        .collect();
+        .collect()
+}
+
+fn config() -> Result<Config, error::GstaldergeistError> {
+    let bot_token = required_env("TELEGRAM_BOT_TOKEN")?;
+    let channel_id_str = required_env("TELEGRAM_CHANNEL_ID")?;
+    let channel_id: i64 = channel_id_str.trim().parse().map_err(|_| {
+        error::GstaldergeistError::ConfigError("TELEGRAM_CHANNEL_ID must be a number".to_string())
+    })?;
+    let flatmates = parse_flatmates(&required_env("TELEGRAM_FLATMATES")?)?;
 
     Ok(Config {
         flatmates,
@@ -117,12 +130,8 @@ fn compute_next_trigger() -> chrono::DateTime<chrono::Local> {
     next_trigger_after(chrono::Local::now())
 }
 
-/// Returns the next scheduled trigger relative to `now`.
-///
-/// Triggers happen at 16:00 (send the order) and 19:00 (control the
-/// accomplishment). Before 16:00 the next trigger is today at 16:00, between
-/// 16:00 and 19:00 it is today at 19:00, and from 19:00 onwards it rolls over
-/// to 16:00 the next day.
+/// Next trigger relative to `now`: today at 16:00, today at 19:00, or 16:00
+/// tomorrow.
 fn next_trigger_after(
     now: chrono::DateTime<chrono::Local>,
 ) -> chrono::DateTime<chrono::Local> {
@@ -135,8 +144,7 @@ fn next_trigger_after(
     }
 }
 
-/// Returns `dt` at the given whole hour, with minutes, seconds and
-/// sub-seconds zeroed so the trigger lands exactly on the hour.
+/// `dt` at the given whole hour, with minutes and below zeroed.
 fn at_hour(
     dt: chrono::DateTime<chrono::Local>,
     hour: u32,
@@ -289,7 +297,6 @@ mod tests {
 
     #[test]
     fn trigger_zeroes_minutes_seconds_and_subseconds() {
-        // 15:59:59 must round to 16:00:00, not carry the 59 seconds over.
         let now = local(2026, 6, 7, 15, 59, 59)
             .with_nanosecond(987_654_321)
             .unwrap();
@@ -304,5 +311,43 @@ mod tests {
     fn rollover_keeps_month_and_year_boundaries() {
         let now = local(2026, 12, 31, 20, 0, 0);
         assert_eq!(next_trigger_after(now), local(2027, 1, 1, 16, 0, 0));
+    }
+
+    #[test]
+    fn parse_flatmates_single_value() {
+        assert_eq!(parse_flatmates("123").unwrap(), vec![123]);
+    }
+
+    #[test]
+    fn parse_flatmates_multiple_values() {
+        assert_eq!(parse_flatmates("123,456,789").unwrap(), vec![123, 456, 789]);
+    }
+
+    #[test]
+    fn parse_flatmates_trims_whitespace() {
+        assert_eq!(
+            parse_flatmates(" 123 , 456 ,789 ").unwrap(),
+            vec![123, 456, 789]
+        );
+    }
+
+    #[test]
+    fn parse_flatmates_accepts_negative_ids() {
+        // Telegram group/channel chat ids are negative.
+        assert_eq!(
+            parse_flatmates("-1001234567890,42").unwrap(),
+            vec![-1001234567890, 42]
+        );
+    }
+
+    #[test]
+    fn parse_flatmates_rejects_non_numeric() {
+        let err = parse_flatmates("123,abc,789").unwrap_err();
+        assert!(matches!(err, error::GstaldergeistError::ConfigError(_)));
+    }
+
+    #[test]
+    fn parse_flatmates_rejects_empty_string() {
+        assert!(parse_flatmates("").is_err());
     }
 }
