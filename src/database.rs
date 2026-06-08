@@ -16,12 +16,10 @@ fn open_db() -> Result<Connection, GstaldergeistError> {
     Ok(conn)
 }
 
-/// Run a `SELECT date, waste_type` query and group the rows by date.
-fn collect_trashes(
-    stmt: &mut rusqlite::Statement,
-    params: impl rusqlite::Params,
-) -> Result<HashMap<NaiveDate, Vec<TrashType>>, GstaldergeistError> {
-    let rows = stmt.query_map(params, |row| {
+pub fn get_all_trashes() -> Result<HashMap<NaiveDate, Vec<TrashType>>, GstaldergeistError> {
+    let conn = open_db()?;
+    let mut stmt = conn.prepare("SELECT date, waste_type FROM trashes")?;
+    let rows = stmt.query_map([], |row| {
         let date: NaiveDate = row.get(0)?;
         let waste_type: TrashType = row.get(1)?;
         Ok((date, waste_type))
@@ -32,23 +30,6 @@ fn collect_trashes(
         trashes.entry(date).or_default().push(waste_type);
     }
     Ok(trashes)
-}
-
-pub fn get_all_trashes() -> Result<HashMap<NaiveDate, Vec<TrashType>>, GstaldergeistError> {
-    let conn = open_db()?;
-    let mut stmt = conn.prepare("SELECT date, waste_type FROM trashes")?;
-    collect_trashes(&mut stmt, [])
-}
-
-#[allow(dead_code)]
-pub fn get_trashes(
-    from: NaiveDate,
-    to: NaiveDate,
-) -> Result<HashMap<NaiveDate, Vec<TrashType>>, GstaldergeistError> {
-    let conn = open_db()?;
-    let mut stmt =
-        conn.prepare("SELECT date, waste_type FROM trashes WHERE date BETWEEN ?1 AND ?2")?;
-    collect_trashes(&mut stmt, [from, to])
 }
 
 pub fn set_trashes(trashes: &HashMap<NaiveDate, Vec<TrashType>>) -> Result<(), GstaldergeistError> {
