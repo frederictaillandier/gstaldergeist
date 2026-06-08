@@ -94,6 +94,13 @@ fn tomorrow_food_master_id(config: &super::Config) -> i64 {
     food_master_id(&config.flatmates, tomorrow)
 }
 
+const FOOD_MASTER_TITLE_PREFIX_LEN: usize = 17;
+
+// Skip by chars, not bytes, so a short or multi-byte title never panics.
+fn food_master_name_from_title(title: &str) -> String {
+    title.chars().skip(FOOD_MASTER_TITLE_PREFIX_LEN).collect()
+}
+
 pub async fn grab_tomorrow_food_master_name(config: &super::Config) -> String {
     let client = reqwest::Client::new();
 
@@ -105,18 +112,12 @@ pub async fn grab_tomorrow_food_master_name(config: &super::Config) -> String {
         bot_token, chat_id
     );
 
-    let response = client
-        .get(url)
-        .send()
-        .await
-        .unwrap()
-        .json::<ChatResult>()
-        .await;
+    let response = match client.get(url).send().await {
+        Ok(response) => response.json::<ChatResult>().await,
+        Err(_) => return "Error".to_string(),
+    };
     match response {
-        Ok(response) => {
-            let mut chat_info = response.result;
-            chat_info.title.split_off(17)
-        }
+        Ok(response) => food_master_name_from_title(&response.result.title),
         Err(_) => "Error".to_string(),
     }
 }
@@ -149,11 +150,35 @@ pub async fn get_trashes(
 
 #[cfg(test)]
 mod tests {
-    use super::food_master_id;
+    use super::{food_master_id, food_master_name_from_title};
     use chrono::NaiveDate;
 
     fn date(y: i32, m: u32, d: u32) -> NaiveDate {
         NaiveDate::from_ymd_opt(y, m, d).unwrap()
+    }
+
+    #[test]
+    fn drops_the_fixed_prefix() {
+        assert_eq!(food_master_name_from_title("Gstaldergeist || Alice"), "Alice");
+    }
+
+    #[test]
+    fn short_title_yields_empty_name_instead_of_panicking() {
+        assert_eq!(food_master_name_from_title("too short"), "");
+        assert_eq!(food_master_name_from_title(""), "");
+    }
+
+    #[test]
+    fn prefix_length_boundary_yields_empty_name() {
+        assert_eq!(food_master_name_from_title("17_characters_xyz"), "");
+    }
+
+    #[test]
+    fn counts_characters_not_bytes_for_multibyte_names() {
+        assert_eq!(
+            food_master_name_from_title("Gstaldergeist || Élodie"),
+            "Élodie"
+        );
     }
 
     #[test]
