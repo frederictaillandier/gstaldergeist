@@ -94,14 +94,9 @@ fn tomorrow_food_master_id(config: &super::Config) -> i64 {
     food_master_id(&config.flatmates, tomorrow)
 }
 
-/// Number of leading characters in a flatmate's Telegram chat title that make
-/// up a fixed label; the food master's display name is whatever follows it.
 const FOOD_MASTER_TITLE_PREFIX_LEN: usize = 17;
 
-/// Extracts the food master's display name from their Telegram chat title by
-/// dropping the fixed prefix. Unlike `String::split_off`, this never panics on
-/// short titles or multi-byte characters: a title shorter than the prefix
-/// simply yields an empty name.
+// Skip by chars, not bytes, so a short or multi-byte title never panics.
 fn food_master_name_from_title(title: &str) -> String {
     title.chars().skip(FOOD_MASTER_TITLE_PREFIX_LEN).collect()
 }
@@ -164,7 +159,6 @@ mod tests {
 
     #[test]
     fn drops_the_fixed_prefix() {
-        // 17-character prefix followed by the actual name.
         assert_eq!(food_master_name_from_title("Gstaldergeist || Alice"), "Alice");
     }
 
@@ -176,13 +170,11 @@ mod tests {
 
     #[test]
     fn prefix_length_boundary_yields_empty_name() {
-        // Exactly the prefix length: nothing remains after dropping it.
         assert_eq!(food_master_name_from_title("17_characters_xyz"), "");
     }
 
     #[test]
     fn counts_characters_not_bytes_for_multibyte_names() {
-        // A multi-byte character right after the prefix must not be split mid-byte.
         assert_eq!(
             food_master_name_from_title("Gstaldergeist || Élodie"),
             "Élodie"
