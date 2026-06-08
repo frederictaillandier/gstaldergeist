@@ -128,6 +128,49 @@ fn compute_next_trigger() -> chrono::DateTime<chrono::Local> {
     }
 }
 
+/// Number of times the scheduler tries to collect the schedule for a trigger
+/// before giving up and alerting the group.
+const MAX_COLLECT_ATTEMPTS: u32 = 5;
+/// Delay before the first retry; doubles after each failed attempt.
+const INITIAL_BACKOFF_SECS: u64 = 60;
+/// Upper bound on the exponential backoff between retries.
+const MAX_BACKOFF_SECS: u64 = 900;
+
+/// Collect the trashes schedule, retrying a few times with exponential backoff
+/// before reporting failure. Transient upstream problems (We-Recycle/Adliswil
+/// unreachable, a timeout, an unparseable PDF) usually clear within minutes, so
+/// a handful of spaced-out attempts recovers from them without giving up.
+async fn collect_trashes_data_with_retries(
+    config: &Config,
+) -> Result<data_grabber::TrashesSchedule, error::GstaldergeistError> {
+    let mut backoff = INITIAL_BACKOFF_SECS;
+    for attempt in 1..=MAX_COLLECT_ATTEMPTS {
+        match collect_trashes_data(config).await {
+            Ok(schedule) => return Ok(schedule),
+            Err(e) => {
+                if attempt == MAX_COLLECT_ATTEMPTS {
+                    tracing::error!(
+                        "Failed to collect trashes data after {} attempts: {}",
+                        MAX_COLLECT_ATTEMPTS,
+                        e
+                    );
+                    return Err(e);
+                }
+                tracing::warn!(
+                    "Failed to collect trashes data (attempt {}/{}): {}; retrying in {}s",
+                    attempt,
+                    MAX_COLLECT_ATTEMPTS,
+                    e,
+                    backoff
+                );
+                tokio::time::sleep(tokio::time::Duration::from_secs(backoff)).await;
+                backoff = (backoff * 2).min(MAX_BACKOFF_SECS);
+            }
+        }
+    }
+    unreachable!("the final attempt returns from the loop");
+}
+
 async fn collect_trashes_data(
     config: &Config,
 ) -> Result<data_grabber::TrashesSchedule, error::GstaldergeistError> {
@@ -162,13 +205,24 @@ async fn send_scheduled_messages(
         }
         // A transient failure (e.g. We-Recycle/Adliswil unreachable, a timeout,
         // or an unparseable PDF) must not kill the scheduler: that would silently
-        // stop all future reminders while the bot keeps running. Log it, wait a
-        // minute, and retry without advancing the trigger.
-        let trashes_schedule = match collect_trashes_data(&config).await {
+        // stop all future reminders while the bot keeps running. Retry a few
+        // times with backoff; if it still fails, tell the group so a human can
+        // step in, then move on to the next trigger instead of hammering the API.
+        let trashes_schedule = match collect_trashes_data_with_retries(&config).await {
             Ok(schedule) => schedule,
             Err(e) => {
-                tracing::error!("Failed to collect trashes data: {}; retrying shortly", e);
-                tokio::time::sleep(tokio::time::Duration::from_secs(60)).await;
+                telegram_writer::notify_group(
+                    &bot,
+                    &config,
+                    &format!(
+                        "⚠️ I couldn't fetch the trash schedule after {} attempts ({}). \
+                         Please check the bins yourselves today.",
+                        MAX_COLLECT_ATTEMPTS, e
+                    ),
+                )
+                .await;
+                next_trigger = compute_next_trigger();
+                shared_task.lock().unwrap().next_trigger = next_trigger;
                 continue;
             }
         };
