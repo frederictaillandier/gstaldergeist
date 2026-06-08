@@ -29,10 +29,10 @@ impl EmailConfig {
     }
 }
 
-pub fn request_new_bags() {
-    let email_config = EmailConfig::from_env().unwrap();
+pub fn request_new_bags() -> Result<(), Box<dyn Error>> {
+    let email_config = EmailConfig::from_env()?;
 
-    let res = send_email(
+    send_email(
         &email_config,
         email_config.to_email.as_str(),
         "We Recycle",
@@ -54,11 +54,9 @@ pub fn request_new_bags() {
             )
             .as_str(),
         ),
-    );
-    match res {
-        Ok(_) => tracing::info!("Email sent successfully"),
-        Err(e) => tracing::error!("Error sending email: {}", e),
-    }
+    )?;
+    tracing::info!("Email sent successfully");
+    Ok(())
 }
 
 fn send_email(
