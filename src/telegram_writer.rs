@@ -13,6 +13,10 @@ async fn send(bot: &Bot, channel: i64, message: &str) {
     }
 }
 
+pub async fn notify_group(bot: &Bot, config: &super::Config, message: &str) {
+    send(bot, config.global_channel_id, message).await;
+}
+
 async fn weekly_update(bot: &Bot, config: &super::Config, schedule: &TrashesSchedule) {
     let global_chat_update_txt =
         format!("The new food master is {}.", schedule.tomorrow_master_name);
