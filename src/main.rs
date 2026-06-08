@@ -28,21 +28,34 @@ pub struct Config {
     pub bot_token: String,
 }
 
-fn config() -> Result<Config, error::GstaldergeistError> {
-    let bot_token = env::var("TELEGRAM_BOT_TOKEN").expect("TELEGRAM_BOT_TOKEN not set");
-    let channel_id_str = env::var("TELEGRAM_CHANNEL_ID").expect("TELEGRAM_CHANNEL_ID not set");
-    let channel_id: i64 = channel_id_str
-        .parse()
-        .expect("TELEGRAM_CHANNEL_ID must be a number");
-    let flatmates: String = env::var("TELEGRAM_FLATMATES").expect("TELEGRAM_FLATMATES not set");
-    let flatmates: Vec<i64> = flatmates
-        .split(',')
+fn required_env(name: &str) -> Result<String, error::GstaldergeistError> {
+    env::var(name)
+        .map_err(|_| error::GstaldergeistError::ConfigError(format!("{} not set", name)))
+}
+
+/// Parse a comma-separated list of Telegram chat ids, e.g. "123, 456, 789".
+fn parse_flatmates(raw: &str) -> Result<Vec<i64>, error::GstaldergeistError> {
+    raw.split(',')
         .map(|s| {
-            s.trim().parse().expect(
-                "TELEGRAM_FLATMATES must be a comma-separated list of numbers like 123,456,789",
-            )
+            let trimmed = s.trim();
+            trimmed.parse::<i64>().map_err(|_| {
+                error::GstaldergeistError::ConfigError(format!(
+                    "TELEGRAM_FLATMATES must be a comma-separated list of numbers like \
+                     123,456,789, got '{}'",
+                    trimmed
+                ))
+            })
         })
-        .collect();
+        .collect()
+}
+
+fn config() -> Result<Config, error::GstaldergeistError> {
+    let bot_token = required_env("TELEGRAM_BOT_TOKEN")?;
+    let channel_id_str = required_env("TELEGRAM_CHANNEL_ID")?;
+    let channel_id: i64 = channel_id_str.trim().parse().map_err(|_| {
+        error::GstaldergeistError::ConfigError("TELEGRAM_CHANNEL_ID must be a number".to_string())
+    })?;
+    let flatmates = parse_flatmates(&required_env("TELEGRAM_FLATMATES")?)?;
 
     Ok(Config {
         flatmates,
@@ -223,5 +236,48 @@ async fn send_scheduled_messages(
         }
         next_trigger = compute_next_trigger();
         shared_task.lock().unwrap().next_trigger = next_trigger;
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parse_flatmates_single_value() {
+        assert_eq!(parse_flatmates("123").unwrap(), vec![123]);
+    }
+
+    #[test]
+    fn parse_flatmates_multiple_values() {
+        assert_eq!(parse_flatmates("123,456,789").unwrap(), vec![123, 456, 789]);
+    }
+
+    #[test]
+    fn parse_flatmates_trims_whitespace() {
+        assert_eq!(
+            parse_flatmates(" 123 , 456 ,789 ").unwrap(),
+            vec![123, 456, 789]
+        );
+    }
+
+    #[test]
+    fn parse_flatmates_accepts_negative_ids() {
+        // Telegram group/channel chat ids are negative.
+        assert_eq!(
+            parse_flatmates("-1001234567890,42").unwrap(),
+            vec![-1001234567890, 42]
+        );
+    }
+
+    #[test]
+    fn parse_flatmates_rejects_non_numeric() {
+        let err = parse_flatmates("123,abc,789").unwrap_err();
+        assert!(matches!(err, error::GstaldergeistError::ConfigError(_)));
+    }
+
+    #[test]
+    fn parse_flatmates_rejects_empty_string() {
+        assert!(parse_flatmates("").is_err());
     }
 }
