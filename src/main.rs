@@ -128,18 +128,10 @@ fn compute_next_trigger() -> chrono::DateTime<chrono::Local> {
     }
 }
 
-/// Number of times the scheduler tries to collect the schedule for a trigger
-/// before giving up and alerting the group.
 const MAX_COLLECT_ATTEMPTS: u32 = 5;
-/// Delay before the first retry; doubles after each failed attempt.
 const INITIAL_BACKOFF_SECS: u64 = 60;
-/// Upper bound on the exponential backoff between retries.
 const MAX_BACKOFF_SECS: u64 = 900;
 
-/// Collect the trashes schedule, retrying a few times with exponential backoff
-/// before reporting failure. Transient upstream problems (We-Recycle/Adliswil
-/// unreachable, a timeout, an unparseable PDF) usually clear within minutes, so
-/// a handful of spaced-out attempts recovers from them without giving up.
 async fn collect_trashes_data_with_retries(
     config: &Config,
 ) -> Result<data_grabber::TrashesSchedule, error::GstaldergeistError> {
@@ -203,11 +195,8 @@ async fn send_scheduled_messages(
             tokio::time::sleep(tokio::time::Duration::from_secs(60)).await;
             continue;
         }
-        // A transient failure (e.g. We-Recycle/Adliswil unreachable, a timeout,
-        // or an unparseable PDF) must not kill the scheduler: that would silently
-        // stop all future reminders while the bot keeps running. Retry a few
-        // times with backoff; if it still fails, tell the group so a human can
-        // step in, then move on to the next trigger instead of hammering the API.
+        // A failed collection must not kill the scheduler, or all future
+        // reminders silently stop while the bot keeps running.
         let trashes_schedule = match collect_trashes_data_with_retries(&config).await {
             Ok(schedule) => schedule,
             Err(e) => {
