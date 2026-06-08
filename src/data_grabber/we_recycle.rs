@@ -101,3 +101,55 @@ async fn download_pdf() -> Result<Vec<NaiveDate>, GstaldergeistError> {
     result.sort();
     Ok(result)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The PDF dates carry no year, so `extract_dates_from_txt` stamps them with
+    /// the current year. Tests build their expectations against the same year.
+    fn date(day: u32, month: u32) -> NaiveDate {
+        let year = chrono::Utc::now().date_naive().year();
+        NaiveDate::from_ymd_opt(year, month, day).unwrap()
+    }
+
+    #[test]
+    fn keeps_only_collection_dates_for_region_19() {
+        // The flat sits in collection region 19, so only rows whose region
+        // column mentions "19" are relevant.
+        let dates = extract_dates_from_txt("05.06. FR 19 ".to_string()).unwrap();
+        assert_eq!(dates, vec![date(5, 6)]);
+    }
+
+    #[test]
+    fn ignores_rows_for_other_regions() {
+        let dates = extract_dates_from_txt("01.01. MO 20 ".to_string()).unwrap();
+        assert!(dates.is_empty());
+    }
+
+    #[test]
+    fn matches_region_19_within_a_range_of_regions() {
+        // Region 19 can appear among several space/plus/dash separated regions.
+        let dates = extract_dates_from_txt("12.07. SA 7 + 19 - 20 ".to_string()).unwrap();
+        assert_eq!(dates, vec![date(12, 7)]);
+    }
+
+    #[test]
+    fn ignores_rows_without_a_region_column() {
+        let dates = extract_dates_from_txt("05.06. FR ".to_string()).unwrap();
+        assert!(dates.is_empty());
+    }
+
+    #[test]
+    fn returns_dates_sorted_ascending() {
+        let text = "12.07. SA 19 \n05.06. FR 19 \n09.06. TU 5 + 19 ".to_string();
+        let dates = extract_dates_from_txt(text).unwrap();
+        assert_eq!(dates, vec![date(5, 6), date(9, 6), date(12, 7)]);
+    }
+
+    #[test]
+    fn returns_empty_when_no_dates_present() {
+        let dates = extract_dates_from_txt("no dates in this text".to_string()).unwrap();
+        assert!(dates.is_empty());
+    }
+}
