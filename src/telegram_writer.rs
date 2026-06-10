@@ -1,4 +1,4 @@
-use super::data_grabber::TrashesSchedule;
+use super::data_grabber::{TrashType, TrashesSchedule};
 use chrono::Datelike;
 use teloxide::prelude::*;
 use teloxide::{
@@ -11,6 +11,14 @@ async fn send(bot: &Bot, channel: i64, message: &str) {
         Ok(_) => tracing::info!("Scheduled message sent successfully"),
         Err(e) => tracing::error!("Error sending scheduled message: {}", e),
     }
+}
+
+fn format_trashes(trashes: &[TrashType]) -> String {
+    trashes
+        .iter()
+        .map(|trash| trash.to_string())
+        .collect::<Vec<_>>()
+        .join(" ")
 }
 
 pub async fn notify_group(bot: &Bot, config: &super::Config, message: &str) {
@@ -30,10 +38,8 @@ async fn weekly_update(bot: &Bot, config: &super::Config, schedule: &TrashesSche
         match trashes {
             None => continue,
             Some(trashes) => {
-                let trashes_str = trashes
-                    .iter()
-                    .fold(String::new(), |acc, trash| format!("{} {}", acc, trash));
-                let day_update = format!("{} on {},\n", trashes_str, date.weekday());
+                let day_update =
+                    format!("{} on {},\n", format_trashes(trashes), date.weekday());
                 master_update_txt.push_str(&day_update);
             }
         }
@@ -82,15 +88,13 @@ async fn daily_update(
     let trashes = schedule.dates.get(&tomorrow);
     match trashes {
         Some(trashes) => {
-            let trashes_str = trashes
-                .iter()
-                .fold(String::new(), |acc, trash| format!("{} {}", acc, trash));
             let daily_update_txt = format!(
-                "Hello {} !\nDon't forget to put the{} trashes out before tomorrow morning! \n\
+                "Hello {} !\nDon't forget to put the {} trashes out before tomorrow morning! \n\
                 If you don't answer this message before 9pm,\n\
                 a reminder will be sent to all the flatmates.\n\
                 ",
-                schedule.tomorrow_master_name, trashes_str
+                schedule.tomorrow_master_name,
+                format_trashes(trashes)
             );
 
             let keyboard = InlineKeyboardMarkup::new(vec![
@@ -137,18 +141,38 @@ pub async fn send_update(
     daily_update(bot, config, schedule, shared_task).await;
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn formats_a_single_trash() {
+        assert_eq!(format_trashes(&[TrashType::Normal]), "Normal");
+    }
+
+    #[test]
+    fn space_separates_multiple_trashes_without_leading_space() {
+        assert_eq!(
+            format_trashes(&[TrashType::Normal, TrashType::Bio, TrashType::Paper]),
+            "Normal Bio Paper"
+        );
+    }
+
+    #[test]
+    fn empty_slice_yields_empty_string() {
+        assert_eq!(format_trashes(&[]), "");
+    }
+}
+
 pub async fn shame_update(bot: &Bot, config: &super::Config, schedule: &TrashesSchedule) {
     let tomorrow = chrono::Local::now().naive_local().date() + chrono::Duration::days(1);
     let trashes = schedule.dates.get(&tomorrow);
 
     if let Some(trashes) = trashes {
-        let trashes_str = trashes
-            .iter()
-            .fold(String::new(), |acc, trash| format!("{} {}", acc, trash));
-
         let shame_update_txt = format!(
             "Unfortunately {} is not able to fulfill his role as Food master today...Could someone put the {} trashes out before tomorrow morning? Have a nice evening!",
-            schedule.tomorrow_master_name, trashes_str
+            schedule.tomorrow_master_name,
+            format_trashes(trashes)
         );
         send(bot, config.global_channel_id, &shame_update_txt).await;
     }
