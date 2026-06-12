@@ -13,6 +13,22 @@ async fn send(bot: &Bot, channel: i64, message: &str) {
     }
 }
 
+async fn send_with_keyboard(
+    bot: &Bot,
+    channel: i64,
+    message: &str,
+    keyboard: InlineKeyboardMarkup,
+) {
+    match bot
+        .send_message(ChatId(channel), message)
+        .reply_markup(keyboard)
+        .await
+    {
+        Ok(_) => tracing::info!("Scheduled message sent successfully"),
+        Err(e) => tracing::error!("Error sending scheduled message: {}", e),
+    }
+}
+
 fn format_trashes(trashes: &[TrashType]) -> String {
     trashes
         .iter()
@@ -67,15 +83,8 @@ async fn weekly_update(bot: &Bot, config: &super::Config, schedule: &TrashesSche
     send(bot, schedule.tomorrow_master_id, &master_update_txt).await;
 
     let request_bags_txt =
-        format!("Can you look if we still have enough We-Recycle bags? Do we need to order new?");
-    match bot
-        .send_message(ChatId(schedule.tomorrow_master_id), &request_bags_txt)
-        .reply_markup(keyboard)
-        .await
-    {
-        Ok(_) => tracing::info!("Scheduled message sent successfully"),
-        Err(e) => tracing::error!("Error sending scheduled message: {}", e),
-    }
+        "Can you look if we still have enough We-Recycle bags? Do we need to order new?";
+    send_with_keyboard(bot, schedule.tomorrow_master_id, request_bags_txt, keyboard).await;
 }
 
 async fn daily_update(
@@ -103,14 +112,13 @@ async fn daily_update(
                 vec![InlineKeyboardButton::callback("I can't", "cant")],
             ]);
 
-            let res = bot
-                .send_message(ChatId(schedule.tomorrow_master_id), &daily_update_txt)
-                .reply_markup(keyboard)
-                .await;
-            match res {
-                Ok(_) => tracing::info!("Scheduled message sent successfully"),
-                Err(e) => tracing::error!("Error sending scheduled message: {}", e),
-            }
+            send_with_keyboard(
+                bot,
+                schedule.tomorrow_master_id,
+                &daily_update_txt,
+                keyboard,
+            )
+            .await;
             shared_task.lock().unwrap().state = super::TaskState::Pending;
         }
         None => {
