@@ -40,6 +40,18 @@ fn months_in_range(from: NaiveDate, to: NaiveDate) -> Vec<(i32, u32)> {
     months
 }
 
+/// Maps an Adliswil API waste-type code to a `TrashType`. Codes outside the
+/// known set are collection types we don't track and yield `None`.
+fn waste_type_from_code(code: i32) -> Option<TrashType> {
+    match code {
+        1 => Some(TrashType::Normal),
+        2 => Some(TrashType::Bio),
+        3 => Some(TrashType::Cardboard),
+        4 => Some(TrashType::Paper),
+        _ => None,
+    }
+}
+
 #[async_trait::async_trait]
 impl super::WasteGrabber for AdliswilWasteGrabber {
     async fn get_trashes(
@@ -63,15 +75,11 @@ impl super::WasteGrabber for AdliswilWasteGrabber {
 
             for event in wastes.results.events {
                 let naive = event.date.date_naive();
-                if naive > from && naive <= to {
-                    let trastype = match event.waste_type {
-                        1 => super::TrashType::Normal,
-                        2 => super::TrashType::Bio,
-                        3 => super::TrashType::Cardboard,
-                        4 => super::TrashType::Paper,
-                        _ => continue,
-                    };
-                    result.entry(naive).or_default().push(trastype);
+                if naive > from
+                    && naive <= to
+                    && let Some(trash_type) = waste_type_from_code(event.waste_type)
+                {
+                    result.entry(naive).or_default().push(trash_type);
                 }
             }
         }
@@ -117,5 +125,21 @@ mod tests {
             months_in_range(date(2026, 2, 1), date(2026, 1, 1)),
             Vec::<(i32, u32)>::new()
         );
+    }
+
+    #[test]
+    fn maps_known_waste_codes() {
+        let name = |code| waste_type_from_code(code).map(|t| t.to_string());
+        assert_eq!(name(1).as_deref(), Some("Normal"));
+        assert_eq!(name(2).as_deref(), Some("Bio"));
+        assert_eq!(name(3).as_deref(), Some("Cardboard"));
+        assert_eq!(name(4).as_deref(), Some("Paper"));
+    }
+
+    #[test]
+    fn unknown_waste_codes_are_skipped() {
+        assert!(waste_type_from_code(0).is_none());
+        assert!(waste_type_from_code(5).is_none());
+        assert!(waste_type_from_code(-1).is_none());
     }
 }
