@@ -3,20 +3,15 @@ use crate::TaskState;
 use crate::email;
 use chrono::{Datelike, TimeZone};
 use teloxide::prelude::*;
-use teloxide::types::{InlineKeyboardButton, InlineKeyboardMarkup};
+use teloxide::types::{InlineKeyboardButton, InlineKeyboardMarkup, MessageId};
 
 /// This function is called when the "Done" button is pressed
 async fn done_handler(
     bot: &Bot,
-    query: &CallbackQuery,
+    chat_id: ChatId,
+    message_id: MessageId,
     task_state: &std::sync::Arc<std::sync::Mutex<SharedTaskState>>,
 ) -> ResponseResult<()> {
-    let Some(message) = query.message.as_ref() else {
-        return Ok(());
-    };
-
-    let chat_id = message.chat().id;
-    let message_id = message.id();
     let _ = bot
         .edit_message_text(chat_id, message_id, "Thank you! Have a nice evening. <3")
         .await?;
@@ -41,17 +36,14 @@ async fn done_handler(
 
 async fn cant_handler(
     bot: &Bot,
-    query: &CallbackQuery,
+    chat_id: ChatId,
+    message_id: MessageId,
     task_state: &std::sync::Arc<std::sync::Mutex<SharedTaskState>>,
 ) -> ResponseResult<()> {
-    let Some(message) = query.message.as_ref() else {
-        return Ok(());
-    };
-    let chat_id = message.chat().id;
     let _ = bot
         .edit_message_text(
             chat_id,
-            message.id(),
+            message_id,
             "No problem. I will ask the others to help.",
         )
         .await?;
@@ -67,13 +59,9 @@ async fn cant_handler(
 
 async fn request_bags_handler(
     bot: &Bot,
-    query: &CallbackQuery,
-    _: &std::sync::Arc<std::sync::Mutex<SharedTaskState>>,
+    chat_id: ChatId,
+    message_id: MessageId,
 ) -> ResponseResult<()> {
-    let Some(message) = query.message.as_ref() else {
-        return Ok(());
-    };
-    let chat_id = message.chat().id;
     // Handle "No bags" button
     let keyboard = InlineKeyboardMarkup::new(vec![
         // First row with two buttons
@@ -86,7 +74,7 @@ async fn request_bags_handler(
 
     bot.edit_message_text(
         chat_id,
-        message.id(),
+        message_id,
         "Are you sure ? A request will be sent to We-Recycle.",
     )
     .reply_markup(keyboard)
@@ -96,14 +84,9 @@ async fn request_bags_handler(
 
 async fn confirm_request_bags_handler(
     bot: &Bot,
-    query: &CallbackQuery,
-    _: &std::sync::Arc<std::sync::Mutex<SharedTaskState>>,
+    chat_id: ChatId,
+    message_id: MessageId,
 ) -> ResponseResult<()> {
-    let Some(message) = query.message.as_ref() else {
-        return Ok(());
-    };
-    let chat_id = message.chat().id;
-
     let reply = match email::request_new_bags() {
         Ok(()) => "Thank you! I sent a request to We-Recycle.",
         Err(e) => {
@@ -112,22 +95,17 @@ async fn confirm_request_bags_handler(
         }
     };
 
-    bot.edit_message_text(chat_id, message.id(), reply).await?;
+    bot.edit_message_text(chat_id, message_id, reply).await?;
     Ok(())
 }
 
 async fn no_need_bags_handler(
     bot: &Bot,
-    query: &CallbackQuery,
-    _: &std::sync::Arc<std::sync::Mutex<SharedTaskState>>,
+    chat_id: ChatId,
+    message_id: MessageId,
 ) -> ResponseResult<()> {
-    let Some(message) = query.message.as_ref() else {
-        return Ok(());
-    };
-    let chat_id = message.chat().id;
-
     // Handle "Enough bags" button
-    bot.edit_message_text(chat_id, message.id(), "Great! Have a nice evening.")
+    bot.edit_message_text(chat_id, message_id, "Great! Have a nice evening.")
         .await?;
     Ok(())
 }
@@ -145,23 +123,24 @@ pub async fn handle_callback_query(
 
     // Extract the callback data from the query
     if let Some(data) = &data {
-        // Get the chat ID from the message
+        // Get the chat and message IDs once; every handler edits this message.
         let chat_id = message.chat().id;
+        let message_id = message.id();
         match data.as_str() {
             "done" => {
-                done_handler(&bot, &query, &task_state).await?;
+                done_handler(&bot, chat_id, message_id, &task_state).await?;
             }
             "cant" => {
-                cant_handler(&bot, &query, &task_state).await?;
+                cant_handler(&bot, chat_id, message_id, &task_state).await?;
             }
             "new_bags" => {
-                request_bags_handler(&bot, &query, &task_state).await?;
+                request_bags_handler(&bot, chat_id, message_id).await?;
             }
             "sure_bags" => {
-                confirm_request_bags_handler(&bot, &query, &task_state).await?;
+                confirm_request_bags_handler(&bot, chat_id, message_id).await?;
             }
             "enough_bags" => {
-                no_need_bags_handler(&bot, &query, &task_state).await?;
+                no_need_bags_handler(&bot, chat_id, message_id).await?;
             }
             _ => {
                 bot.send_message(chat_id, "Unrecognized option.").await?;
