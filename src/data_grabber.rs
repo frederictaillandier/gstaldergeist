@@ -8,7 +8,7 @@ use async_trait::async_trait;
 use serde::Deserialize;
 use std::collections::HashMap;
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TrashType {
     WeRecycle,
     Normal,
@@ -17,30 +17,42 @@ pub enum TrashType {
     Paper,
 }
 
-// impl TrashType from rusqlite
+impl TrashType {
+    /// The integer discriminant used to persist a `TrashType` in SQLite. This is
+    /// the single source of truth shared by the `ToSql`/`FromSql` impls so the
+    /// two encodings cannot drift apart and corrupt stored rows.
+    fn as_i64(self) -> i64 {
+        match self {
+            TrashType::WeRecycle => 0,
+            TrashType::Normal => 1,
+            TrashType::Bio => 2,
+            TrashType::Cardboard => 3,
+            TrashType::Paper => 4,
+        }
+    }
+
+    fn from_i64(value: i64) -> Option<Self> {
+        match value {
+            0 => Some(TrashType::WeRecycle),
+            1 => Some(TrashType::Normal),
+            2 => Some(TrashType::Bio),
+            3 => Some(TrashType::Cardboard),
+            4 => Some(TrashType::Paper),
+            _ => None,
+        }
+    }
+}
+
 impl rusqlite::types::FromSql for TrashType {
     fn column_result(value: rusqlite::types::ValueRef<'_>) -> rusqlite::types::FromSqlResult<Self> {
-        match value.as_i64()? {
-            0 => Ok(TrashType::WeRecycle),
-            1 => Ok(TrashType::Normal),
-            2 => Ok(TrashType::Bio),
-            3 => Ok(TrashType::Cardboard),
-            4 => Ok(TrashType::Paper),
-            _ => Err(rusqlite::types::FromSqlError::InvalidType),
-        }
+        TrashType::from_i64(value.as_i64()?).ok_or(rusqlite::types::FromSqlError::InvalidType)
     }
 }
 
 impl rusqlite::types::ToSql for TrashType {
     fn to_sql(&self) -> rusqlite::Result<rusqlite::types::ToSqlOutput<'_>> {
         Ok(rusqlite::types::ToSqlOutput::Owned(
-            rusqlite::types::Value::Integer(match self {
-                TrashType::WeRecycle => 0,
-                TrashType::Normal => 1,
-                TrashType::Bio => 2,
-                TrashType::Cardboard => 3,
-                TrashType::Paper => 4,
-            }),
+            rusqlite::types::Value::Integer(self.as_i64()),
         ))
     }
 }
@@ -150,11 +162,43 @@ pub async fn get_trashes(
 
 #[cfg(test)]
 mod tests {
-    use super::{food_master_id, food_master_name_from_title};
+    use super::{TrashType, food_master_id, food_master_name_from_title};
     use chrono::NaiveDate;
 
     fn date(y: i32, m: u32, d: u32) -> NaiveDate {
         NaiveDate::from_ymd_opt(y, m, d).unwrap()
+    }
+
+    const ALL_TRASH_TYPES: [TrashType; 5] = [
+        TrashType::WeRecycle,
+        TrashType::Normal,
+        TrashType::Bio,
+        TrashType::Cardboard,
+        TrashType::Paper,
+    ];
+
+    #[test]
+    fn trash_type_i64_encoding_round_trips() {
+        for trash in ALL_TRASH_TYPES {
+            assert_eq!(TrashType::from_i64(trash.as_i64()), Some(trash));
+        }
+    }
+
+    #[test]
+    fn trash_type_discriminants_are_stable() {
+        // These map onto already-persisted SQLite rows; changing them silently
+        // reinterprets stored history, so pin them down.
+        assert_eq!(TrashType::WeRecycle.as_i64(), 0);
+        assert_eq!(TrashType::Normal.as_i64(), 1);
+        assert_eq!(TrashType::Bio.as_i64(), 2);
+        assert_eq!(TrashType::Cardboard.as_i64(), 3);
+        assert_eq!(TrashType::Paper.as_i64(), 4);
+    }
+
+    #[test]
+    fn unknown_trash_type_discriminant_is_rejected() {
+        assert_eq!(TrashType::from_i64(5), None);
+        assert_eq!(TrashType::from_i64(-1), None);
     }
 
     #[test]
