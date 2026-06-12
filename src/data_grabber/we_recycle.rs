@@ -7,6 +7,20 @@ use std::collections::HashMap;
 
 pub struct WeRecycleWasteGrabber;
 
+/// The flat's We-Recycle collection region.
+const COLLECTION_REGION: u32 = 19;
+
+/// True if `regions` lists `target` as a standalone number. The regions column
+/// is a space/`+`/`-` separated list of region numbers, so we compare whole
+/// tokens rather than substrings — otherwise `190` or `119` would falsely match
+/// region `19`.
+fn regions_include(regions: &str, target: u32) -> bool {
+    regions
+        .split(|c: char| !c.is_ascii_digit())
+        .filter_map(|token| token.parse::<u32>().ok())
+        .any(|region| region == target)
+}
+
 #[async_trait::async_trait]
 impl super::WasteGrabber for WeRecycleWasteGrabber {
     async fn get_trashes(
@@ -32,7 +46,7 @@ fn regex_caps_to_datetime(caps: &regex::Captures) -> Option<NaiveDate> {
     let date = &caps[1];
 
     if let Some(regions) = caps.get(3) {
-        if regions.as_str().contains("19") {
+        if regions_include(regions.as_str(), COLLECTION_REGION) {
             let current_year = chrono::Utc::now().date_naive().year();
             let naive_date =
                 chrono::NaiveDate::parse_from_str(&format!("{}{}", date, current_year), "%d.%m.%Y")
@@ -132,6 +146,17 @@ mod tests {
         // Region 19 can appear among several space/plus/dash separated regions.
         let dates = extract_dates_from_txt("12.07. SA 7 + 19 - 20 ".to_string()).unwrap();
         assert_eq!(dates, vec![date(12, 7)]);
+    }
+
+    #[test]
+    fn ignores_region_numbers_that_merely_contain_19() {
+        // "190" and "119" contain "19" as a substring but are not region 19.
+        assert!(extract_dates_from_txt("05.06. FR 190 ".to_string())
+            .unwrap()
+            .is_empty());
+        assert!(extract_dates_from_txt("05.06. FR 119 ".to_string())
+            .unwrap()
+            .is_empty());
     }
 
     #[test]
