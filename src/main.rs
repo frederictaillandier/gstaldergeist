@@ -190,18 +190,18 @@ async fn collect_trashes_data_with_retries(
     unreachable!("the final attempt returns from the loop");
 }
 
+/// The `(from, to)` date window to fetch collections for, given `today`. On
+/// Sundays the bot looks ahead a whole week; on any other day just to tomorrow.
+fn collection_window(today: chrono::NaiveDate) -> (chrono::NaiveDate, chrono::NaiveDate) {
+    let span = if today.weekday() == Weekday::Sun { 7 } else { 1 };
+    (today, today + chrono::Duration::days(span))
+}
+
 async fn collect_trashes_data(
     config: &Config,
 ) -> Result<data_grabber::TrashesSchedule, error::GstaldergeistError> {
-    let now = chrono::Local::now();
-    let today = now.date_naive();
-    let weekly = today.weekday() == chrono::Weekday::Sun;
-    let until_date = if weekly {
-        today + chrono::Duration::days(7)
-    } else {
-        today + chrono::Duration::days(1)
-    };
-    let trashes_schedule = data_grabber::get_trashes(&config, today, until_date).await?;
+    let (from, to) = collection_window(chrono::Local::now().date_naive());
+    let trashes_schedule = data_grabber::get_trashes(&config, from, to).await?;
     database::set_trashes(&trashes_schedule.dates)?;
     Ok(trashes_schedule)
 }
@@ -311,6 +311,38 @@ mod tests {
     fn rollover_keeps_month_and_year_boundaries() {
         let now = local(2026, 12, 31, 20, 0, 0);
         assert_eq!(next_trigger_after(now), local(2027, 1, 1, 16, 0, 0));
+    }
+
+    fn naive(year: i32, month: u32, day: u32) -> chrono::NaiveDate {
+        chrono::NaiveDate::from_ymd_opt(year, month, day).unwrap()
+    }
+
+    #[test]
+    fn sunday_window_spans_the_whole_week() {
+        // 2024-01-07 is a Sunday.
+        let sunday = naive(2024, 1, 7);
+        assert_eq!(collection_window(sunday), (sunday, naive(2024, 1, 14)));
+    }
+
+    #[test]
+    fn weekday_window_only_reaches_tomorrow() {
+        // 2024-01-08 is a Monday.
+        let monday = naive(2024, 1, 8);
+        assert_eq!(collection_window(monday), (monday, naive(2024, 1, 9)));
+    }
+
+    #[test]
+    fn weekday_window_crosses_month_boundary() {
+        // 2024-01-31 is a Wednesday.
+        let wednesday = naive(2024, 1, 31);
+        assert_eq!(collection_window(wednesday), (wednesday, naive(2024, 2, 1)));
+    }
+
+    #[test]
+    fn sunday_window_crosses_year_boundary() {
+        // 2023-12-31 is a Sunday.
+        let sunday = naive(2023, 12, 31);
+        assert_eq!(collection_window(sunday), (sunday, naive(2024, 1, 7)));
     }
 
     #[test]
