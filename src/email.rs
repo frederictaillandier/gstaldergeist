@@ -29,6 +29,28 @@ impl EmailConfig {
     }
 }
 
+fn bag_request_text_body(name: &str, address: &str) -> String {
+    format!(
+        "Hi!\n\
+         My name is {name} and my address is {address}\n\
+         Unfortunately It looks like we do not have any bags anymore ?\n\
+         Could you please send us some new ones ?\n\
+         Thank you very much !\n\
+         {name}"
+    )
+}
+
+fn bag_request_html_body(name: &str, address: &str) -> String {
+    format!(
+        "<p>Hi,</p>\n\
+         <p>My name is {name} and my address is {address}</p>\n\
+         <p>Unfortunately It looks like we do not have any bags anymore ?</p>\n\
+         <p>Could you please send us some new ones ?</p>\n\
+         <p>Thank you very much !</p>\n\
+         <p>{name}</p>\n"
+    )
+}
+
 pub fn request_new_bags() -> Result<(), Box<dyn Error>> {
     let email_config = EmailConfig::from_env()?;
 
@@ -37,23 +59,8 @@ pub fn request_new_bags() -> Result<(), Box<dyn Error>> {
         email_config.to_email.as_str(),
         "We Recycle",
         "Request for new bags",
-        format!(
-            "Hi!\nMy name is {} and my address is {}\nUnfortunately It looks like we do not have any bags anymore ?\nCould you please send us some new ones ?\nThank you very much !\n{}",
-            email_config.from_name, email_config.address, email_config.from_name
-        ).as_str(),
-        Some(
-            format!(
-                "<p>Hi,</p>
-                <p>My name is {} and my address is {}</p>
-        <p>Unfortunately It looks like we do not have any bags anymore ?</p>
-        <p>Could you please send us some new ones ?</p>
-        <p>Thank you very much !</p>
-        <p>{}</p>
-        ",
-                email_config.from_name, email_config.address, email_config.from_name
-            )
-            .as_str(),
-        ),
+        bag_request_text_body(&email_config.from_name, &email_config.address).as_str(),
+        Some(bag_request_html_body(&email_config.from_name, &email_config.address).as_str()),
     )?;
     tracing::info!("Email sent successfully");
     Ok(())
@@ -105,4 +112,43 @@ fn send_email(
     mailer.send(&email)?;
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{bag_request_html_body, bag_request_text_body};
+
+    #[test]
+    fn text_body_interpolates_name_and_address() {
+        let body = bag_request_text_body("Alice", "1 Main St");
+        assert!(body.contains("My name is Alice and my address is 1 Main St"));
+    }
+
+    #[test]
+    fn text_body_signs_off_with_the_name() {
+        let body = bag_request_text_body("Alice", "1 Main St");
+        assert!(body.ends_with("Alice"));
+    }
+
+    #[test]
+    fn html_body_wraps_each_line_in_a_paragraph() {
+        let body = bag_request_html_body("Alice", "1 Main St");
+        assert!(body.contains("<p>My name is Alice and my address is 1 Main St</p>"));
+        assert!(body.starts_with("<p>Hi,</p>"));
+        assert!(body.trim_end().ends_with("<p>Alice</p>"));
+    }
+
+    #[test]
+    fn bodies_carry_the_same_request() {
+        // Both alternatives must say the same thing so a client showing either
+        // one sees a coherent request.
+        for body in [
+            bag_request_text_body("Bob", "2 Side Rd"),
+            bag_request_html_body("Bob", "2 Side Rd"),
+        ] {
+            assert!(body.contains("Bob"));
+            assert!(body.contains("2 Side Rd"));
+            assert!(body.contains("send us some new ones"));
+        }
+    }
 }
