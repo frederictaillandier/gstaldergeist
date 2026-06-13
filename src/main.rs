@@ -159,6 +159,11 @@ const MAX_COLLECT_ATTEMPTS: u32 = 5;
 const INITIAL_BACKOFF_SECS: u64 = 60;
 const MAX_BACKOFF_SECS: u64 = 900;
 
+/// Next backoff in an exponential schedule: double, but never above the cap.
+fn next_backoff_secs(current: u64) -> u64 {
+    current.saturating_mul(2).min(MAX_BACKOFF_SECS)
+}
+
 async fn collect_trashes_data_with_retries(
     config: &Config,
 ) -> Result<data_grabber::TrashesSchedule, error::GstaldergeistError> {
@@ -183,7 +188,7 @@ async fn collect_trashes_data_with_retries(
                     backoff
                 );
                 tokio::time::sleep(tokio::time::Duration::from_secs(backoff)).await;
-                backoff = (backoff * 2).min(MAX_BACKOFF_SECS);
+                backoff = next_backoff_secs(backoff);
             }
         }
     }
@@ -349,5 +354,29 @@ mod tests {
     #[test]
     fn parse_flatmates_rejects_empty_string() {
         assert!(parse_flatmates("").is_err());
+    }
+
+    #[test]
+    fn backoff_doubles_until_it_reaches_the_cap() {
+        // Starting from the initial delay, the retry schedule grows
+        // geometrically and then saturates at MAX_BACKOFF_SECS.
+        let mut backoff = INITIAL_BACKOFF_SECS;
+        let mut schedule = vec![backoff];
+        for _ in 0..6 {
+            backoff = next_backoff_secs(backoff);
+            schedule.push(backoff);
+        }
+        assert_eq!(schedule, vec![60, 120, 240, 480, 900, 900, 900]);
+    }
+
+    #[test]
+    fn backoff_never_exceeds_the_cap() {
+        assert_eq!(next_backoff_secs(MAX_BACKOFF_SECS), MAX_BACKOFF_SECS);
+        assert_eq!(next_backoff_secs(MAX_BACKOFF_SECS - 1), MAX_BACKOFF_SECS);
+    }
+
+    #[test]
+    fn backoff_does_not_overflow_at_the_extreme() {
+        assert_eq!(next_backoff_secs(u64::MAX), MAX_BACKOFF_SECS);
     }
 }
