@@ -1,5 +1,6 @@
 use super::data_grabber::{TrashType, TrashesSchedule};
-use chrono::Datelike;
+use chrono::{Datelike, NaiveDate};
+use std::collections::HashMap;
 use teloxide::prelude::*;
 use teloxide::{
     payloads::SendMessageSetters,
@@ -21,6 +22,19 @@ fn format_trashes(trashes: &[TrashType]) -> String {
         .join(" ")
 }
 
+/// Lists the collection days in the seven days after `today`, one per line,
+/// skipping days with no collection.
+fn format_week_schedule(dates: &HashMap<NaiveDate, Vec<TrashType>>, today: NaiveDate) -> String {
+    let mut schedule = String::new();
+    for offset in 1..8 {
+        let date = today + chrono::Duration::days(offset);
+        if let Some(trashes) = dates.get(&date) {
+            schedule.push_str(&format!("{} on {},\n", format_trashes(trashes), date.weekday()));
+        }
+    }
+    schedule
+}
+
 pub async fn notify_group(bot: &Bot, config: &super::Config, message: &str) {
     send(bot, config.global_channel_id, message).await;
 }
@@ -30,20 +44,8 @@ async fn weekly_update(bot: &Bot, config: &super::Config, schedule: &TrashesSche
         format!("The new food master is {}.", schedule.tomorrow_master_name);
     send(bot, config.global_channel_id, &global_chat_update_txt).await;
 
-    let mut master_update_txt = String::new();
-    for i in 1..8 {
-        // iterate over the next 7 days
-        let date = chrono::Local::now().naive_local().date() + chrono::Duration::days(i);
-        let trashes = schedule.dates.get(&date);
-        match trashes {
-            None => continue,
-            Some(trashes) => {
-                let day_update =
-                    format!("{} on {},\n", format_trashes(trashes), date.weekday());
-                master_update_txt.push_str(&day_update);
-            }
-        }
-    }
+    let today = chrono::Local::now().naive_local().date();
+    let master_update_txt = format_week_schedule(&schedule.dates, today);
     let keyboard = InlineKeyboardMarkup::new(vec![
         // First row with two buttons
         vec![InlineKeyboardButton::callback(
@@ -161,6 +163,36 @@ mod tests {
     #[test]
     fn empty_slice_yields_empty_string() {
         assert_eq!(format_trashes(&[]), "");
+    }
+
+    fn date(y: i32, m: u32, d: u32) -> NaiveDate {
+        NaiveDate::from_ymd_opt(y, m, d).unwrap()
+    }
+
+    #[test]
+    fn week_schedule_lists_collection_days_in_order() {
+        // 2024-01-01 is a Monday, so offsets 1..8 cover Tue..next Mon.
+        let mut dates = HashMap::new();
+        dates.insert(date(2024, 1, 4), vec![TrashType::Bio, TrashType::Paper]);
+        dates.insert(date(2024, 1, 2), vec![TrashType::Normal]);
+        assert_eq!(
+            format_week_schedule(&dates, date(2024, 1, 1)),
+            "Normal on Tue,\nBio Paper on Thu,\n"
+        );
+    }
+
+    #[test]
+    fn week_schedule_is_empty_without_collections() {
+        let dates = HashMap::new();
+        assert_eq!(format_week_schedule(&dates, date(2024, 1, 1)), "");
+    }
+
+    #[test]
+    fn week_schedule_excludes_today_and_the_eighth_day() {
+        let mut dates = HashMap::new();
+        dates.insert(date(2024, 1, 1), vec![TrashType::Normal]); // today, offset 0
+        dates.insert(date(2024, 1, 9), vec![TrashType::Paper]); // offset 8
+        assert_eq!(format_week_schedule(&dates, date(2024, 1, 1)), "");
     }
 }
 
