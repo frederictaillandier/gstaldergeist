@@ -63,7 +63,7 @@ impl super::WasteGrabber for AdliswilWasteGrabber {
 
             for event in wastes.results.events {
                 let naive = event.date.date_naive();
-                if naive > from && naive <= to {
+                if super::is_in_collection_window(naive, from, to) {
                     let trastype = match event.waste_type {
                         1 => super::TrashType::Normal,
                         2 => super::TrashType::Bio,

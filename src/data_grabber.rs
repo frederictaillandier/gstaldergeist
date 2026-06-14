@@ -76,6 +76,13 @@ impl fmt::Display for TrashType {
     }
 }
 
+/// Whether a collection on `date` belongs in the reminder window. The window is
+/// half-open as `(from, to]`: a collection on `from` itself is excluded (we only
+/// remind about upcoming days), while `to` is included.
+pub(crate) fn is_in_collection_window(date: NaiveDate, from: NaiveDate, to: NaiveDate) -> bool {
+    date > from && date <= to
+}
+
 #[derive(Debug)]
 pub struct TrashesSchedule {
     pub dates: HashMap<NaiveDate, Vec<TrashType>>,
@@ -150,11 +157,56 @@ pub async fn get_trashes(
 
 #[cfg(test)]
 mod tests {
-    use super::{food_master_id, food_master_name_from_title};
+    use super::{food_master_id, food_master_name_from_title, is_in_collection_window};
     use chrono::NaiveDate;
 
     fn date(y: i32, m: u32, d: u32) -> NaiveDate {
         NaiveDate::from_ymd_opt(y, m, d).unwrap()
+    }
+
+    #[test]
+    fn window_excludes_the_start_day() {
+        assert!(!is_in_collection_window(
+            date(2026, 6, 15),
+            date(2026, 6, 15),
+            date(2026, 6, 22)
+        ));
+    }
+
+    #[test]
+    fn window_includes_the_end_day() {
+        assert!(is_in_collection_window(
+            date(2026, 6, 22),
+            date(2026, 6, 15),
+            date(2026, 6, 22)
+        ));
+    }
+
+    #[test]
+    fn window_includes_a_day_inside_the_range() {
+        assert!(is_in_collection_window(
+            date(2026, 6, 16),
+            date(2026, 6, 15),
+            date(2026, 6, 22)
+        ));
+    }
+
+    #[test]
+    fn window_excludes_days_after_the_end() {
+        assert!(!is_in_collection_window(
+            date(2026, 6, 23),
+            date(2026, 6, 15),
+            date(2026, 6, 22)
+        ));
+    }
+
+    #[test]
+    fn window_excludes_days_before_the_start() {
+        assert!(!is_in_collection_window(
+            date(2026, 6, 14),
+            date(2026, 6, 15),
+            date(2026, 6, 22)
+        ));
     }
 
     #[test]
