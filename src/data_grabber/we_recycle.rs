@@ -17,7 +17,7 @@ impl super::WasteGrabber for WeRecycleWasteGrabber {
         let extracted_dates = download_pdf().await?;
         let mut result = HashMap::new();
         for date in extracted_dates {
-            if date > from && date <= to {
+            if super::is_in_collection_window(date, from, to) {
                 result
                     .entry(date)
                     .or_insert_with(Vec::new)
