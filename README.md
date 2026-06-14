@@ -79,9 +79,14 @@ TO_EMAIL="we-recycle@gmail.com"
 
 ```
 src/
-├── main.rs          # Main bot implementation
-├── email.rs         # Email handling functionality
-└── data_grabber/    # Data collection modules
+├── main.rs            # Entry point: config, scheduler, dispatcher wiring
+├── answer_handler.rs  # Telegram message and callback-query handlers
+├── telegram_writer.rs # Composing and sending Telegram messages
+├── database.rs        # SQLite persistence of the trash schedule
+├── email.rs           # Email notifications (We-Recycle bag requests)
+├── error.rs           # Shared error type
+├── data_grabber.rs    # Grabber orchestration, trash types, food-master rotation
+└── data_grabber/      # Per-service waste-data collection
     ├── we_recycle.rs
     └── adliswil.rs
 ```
