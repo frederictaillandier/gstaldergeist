@@ -49,12 +49,20 @@ fn parse_flatmates(raw: &str) -> Result<Vec<i64>, error::GstaldergeistError> {
         .collect()
 }
 
+/// Parse a single Telegram chat id, e.g. "-1001234567890".
+fn parse_channel_id(raw: &str) -> Result<i64, error::GstaldergeistError> {
+    let trimmed = raw.trim();
+    trimmed.parse::<i64>().map_err(|_| {
+        error::GstaldergeistError::ConfigError(format!(
+            "TELEGRAM_CHANNEL_ID must be a number like -1001234567890, got '{}'",
+            trimmed
+        ))
+    })
+}
+
 fn config() -> Result<Config, error::GstaldergeistError> {
     let bot_token = required_env("TELEGRAM_BOT_TOKEN")?;
-    let channel_id_str = required_env("TELEGRAM_CHANNEL_ID")?;
-    let channel_id: i64 = channel_id_str.trim().parse().map_err(|_| {
-        error::GstaldergeistError::ConfigError("TELEGRAM_CHANNEL_ID must be a number".to_string())
-    })?;
+    let channel_id = parse_channel_id(&required_env("TELEGRAM_CHANNEL_ID")?)?;
     let flatmates = parse_flatmates(&required_env("TELEGRAM_FLATMATES")?)?;
 
     Ok(Config {
@@ -349,5 +357,32 @@ mod tests {
     #[test]
     fn parse_flatmates_rejects_empty_string() {
         assert!(parse_flatmates("").is_err());
+    }
+
+    #[test]
+    fn parse_channel_id_accepts_a_plain_number() {
+        assert_eq!(parse_channel_id("123456").unwrap(), 123456);
+    }
+
+    #[test]
+    fn parse_channel_id_trims_whitespace() {
+        assert_eq!(parse_channel_id("  123456 ").unwrap(), 123456);
+    }
+
+    #[test]
+    fn parse_channel_id_accepts_negative_ids() {
+        // Telegram group/channel chat ids are negative.
+        assert_eq!(parse_channel_id("-1001234567890").unwrap(), -1001234567890);
+    }
+
+    #[test]
+    fn parse_channel_id_rejects_non_numeric() {
+        let err = parse_channel_id("not-a-number").unwrap_err();
+        assert!(matches!(err, error::GstaldergeistError::ConfigError(_)));
+    }
+
+    #[test]
+    fn parse_channel_id_rejects_empty_string() {
+        assert!(parse_channel_id("").is_err());
     }
 }
